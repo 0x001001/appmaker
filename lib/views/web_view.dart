@@ -66,7 +66,7 @@ class _WebViewState extends State<WebView> {
   InAppWebViewGroupOptions options = InAppWebViewGroupOptions(
       crossPlatform: InAppWebViewOptions(
           useShouldOverrideUrlLoading: true,
-          mediaPlaybackRequiresUserGesture: false,
+          mediaPlaybackRequiresUserGesture: true,
           supportZoom: false,
           useOnDownloadStart: true,
           horizontalScrollBarEnabled: false,
@@ -265,12 +265,13 @@ class _WebViewState extends State<WebView> {
   }
 
   void injectCss(index) {
-    String styles = "";
+    StringBuffer stylesBuffer = StringBuffer();
     for (var item in Config.cssHideBlock) {
-      styles = styles + item + "{ display: none; }";
+      stylesBuffer.write(item);
+      stylesBuffer.write("{ display: none; }");
     }
     webViewsCollections[index].webExplorerController?.injectCSSCode(
-        source: styles
+        source: stylesBuffer.toString()
     );
   }
 
@@ -467,8 +468,50 @@ class _WebViewState extends State<WebView> {
           androidOnPermissionRequest:
               (InAppWebViewController controller, String origin,
               List<String> resources) async {
+            bool isTrusted = false;
+            try {
+              Uri originUri = Uri.parse(origin);
+              List<String> trustedUrls = [
+                Config.appLink,
+                ...Config.mainNavigation.where((item) => item.type == ActionType.internal).map((item) => item.value),
+                ...Config.barNavigation.where((item) => item.type == ActionType.internal).map((item) => item.value),
+                ...Config.modalNavigation.where((item) => item.type == ActionType.internal).map((item) => item.value)
+              ];
+
+              for (String url in trustedUrls) {
+                Uri trustedUri = Uri.parse(url);
+                if (trustedUri.host.isNotEmpty && originUri.host == trustedUri.host) {
+                  isTrusted = true;
+                  break;
+                }
+              }
+            } catch (e) {
+              isTrusted = false;
+            }
+
+            if (!isTrusted) {
+              return PermissionRequestResponse(
+                  resources: [], action: PermissionRequestResponseAction.DENY);
+            }
+
+            List<String> grantedResources = [];
+            for (String resource in resources) {
+              if (resource == 'android.webkit.resource.VIDEO_CAPTURE' && Config.accessCamera) {
+                grantedResources.add(resource);
+              } else if (resource == 'android.webkit.resource.AUDIO_CAPTURE' && Config.accessMicrophone) {
+                grantedResources.add(resource);
+              } else if (resource != 'android.webkit.resource.VIDEO_CAPTURE' && resource != 'android.webkit.resource.AUDIO_CAPTURE') {
+                grantedResources.add(resource);
+              }
+            }
+
+            if (grantedResources.isEmpty) {
+              return PermissionRequestResponse(
+                  resources: [], action: PermissionRequestResponseAction.DENY);
+            }
+
             return PermissionRequestResponse(
-                resources: resources,
+                resources: grantedResources,
                 action: PermissionRequestResponseAction.GRANT);
           },
           onDownloadStart: (controller, url) async {
