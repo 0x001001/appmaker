@@ -66,7 +66,7 @@ class _WebViewState extends State<WebView> {
   InAppWebViewGroupOptions options = InAppWebViewGroupOptions(
       crossPlatform: InAppWebViewOptions(
           useShouldOverrideUrlLoading: true,
-          mediaPlaybackRequiresUserGesture: false,
+          mediaPlaybackRequiresUserGesture: true,
           supportZoom: false,
           useOnDownloadStart: true,
           horizontalScrollBarEnabled: false,
@@ -265,12 +265,13 @@ class _WebViewState extends State<WebView> {
   }
 
   void injectCss(index) {
-    String styles = "";
+    var buffer = StringBuffer();
     for (var item in Config.cssHideBlock) {
-      styles = styles + item + "{ display: none; }";
+      buffer.write(item);
+      buffer.write("{ display: none; }");
     }
     webViewsCollections[index].webExplorerController?.injectCSSCode(
-        source: styles
+        source: buffer.toString()
     );
   }
 
@@ -312,6 +313,45 @@ class _WebViewState extends State<WebView> {
         ),
       ],
     ));
+  }
+
+  bool _isTrustedOrigin(String origin) {
+    try {
+      final originUri = Uri.parse(origin);
+      final host = originUri.host;
+
+      final trustedHosts = <String>{};
+
+      // Add main app link host
+      final appLinkUri = Uri.tryParse(Config.appLink);
+      if (appLinkUri != null && appLinkUri.host.isNotEmpty) {
+        trustedHosts.add(appLinkUri.host);
+      }
+
+      // Add main navigation internal links hosts
+      for (var item in Config.mainNavigation) {
+        if (item.type == ActionType.internal) {
+          final uri = Uri.tryParse(item.value);
+          if (uri != null && uri.host.isNotEmpty) {
+            trustedHosts.add(uri.host);
+          }
+        }
+      }
+
+      // Add modal navigation internal links hosts
+      for (var item in Config.modalNavigation) {
+        if (item.type == ActionType.internal) {
+          final uri = Uri.tryParse(item.value);
+          if (uri != null && uri.host.isNotEmpty) {
+            trustedHosts.add(uri.host);
+          }
+        }
+      }
+
+      return trustedHosts.contains(host);
+    } catch (e) {
+      return false;
+    }
   }
 
   Future<bool> checkStoragePermission() async {
@@ -428,8 +468,11 @@ class _WebViewState extends State<WebView> {
             });
           },
           androidOnGeolocationPermissionsShowPrompt: (InAppWebViewController controller, String origin) async {
-            await Permission.location.request();
-            return Future.value(GeolocationPermissionShowPromptResponse(origin: origin, allow: true, retain: true));
+            if (Config.accessLocation && _isTrustedOrigin(origin)) {
+              await Permission.location.request();
+              return Future.value(GeolocationPermissionShowPromptResponse(origin: origin, allow: true, retain: true));
+            }
+            return Future.value(GeolocationPermissionShowPromptResponse(origin: origin, allow: false, retain: false));
           },
           shouldOverrideUrlLoading: (controller, navigationAction) async {
             var uri = navigationAction.request.url!;
@@ -467,8 +510,32 @@ class _WebViewState extends State<WebView> {
           androidOnPermissionRequest:
               (InAppWebViewController controller, String origin,
               List<String> resources) async {
+
+            if (!_isTrustedOrigin(origin)) {
+              return PermissionRequestResponse(
+                  resources: resources,
+                  action: PermissionRequestResponseAction.DENY);
+            }
+
+            final grantedResources = <String>[];
+            for (var resource in resources) {
+              if (resource == 'android.webkit.resource.VIDEO_CAPTURE' && Config.accessCamera) {
+                grantedResources.add(resource);
+              } else if (resource == 'android.webkit.resource.AUDIO_CAPTURE' && Config.accessMicrophone) {
+                grantedResources.add(resource);
+              } else if (resource != 'android.webkit.resource.VIDEO_CAPTURE' && resource != 'android.webkit.resource.AUDIO_CAPTURE') {
+                grantedResources.add(resource);
+              }
+            }
+
+            if (grantedResources.isEmpty) {
+              return PermissionRequestResponse(
+                  resources: resources,
+                  action: PermissionRequestResponseAction.DENY);
+            }
+
             return PermissionRequestResponse(
-                resources: resources,
+                resources: grantedResources,
                 action: PermissionRequestResponseAction.GRANT);
           },
           onDownloadStart: (controller, url) async {
