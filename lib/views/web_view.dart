@@ -66,7 +66,7 @@ class _WebViewState extends State<WebView> {
   InAppWebViewGroupOptions options = InAppWebViewGroupOptions(
       crossPlatform: InAppWebViewOptions(
           useShouldOverrideUrlLoading: true,
-          mediaPlaybackRequiresUserGesture: false,
+          mediaPlaybackRequiresUserGesture: true,
           supportZoom: false,
           useOnDownloadStart: true,
           horizontalScrollBarEnabled: false,
@@ -265,12 +265,13 @@ class _WebViewState extends State<WebView> {
   }
 
   void injectCss(index) {
-    String styles = "";
+    StringBuffer styles = StringBuffer();
     for (var item in Config.cssHideBlock) {
-      styles = styles + item + "{ display: none; }";
+      styles.write(item);
+      styles.write("{ display: none; }");
     }
     webViewsCollections[index].webExplorerController?.injectCSSCode(
-        source: styles
+        source: styles.toString()
     );
   }
 
@@ -329,6 +330,43 @@ class _WebViewState extends State<WebView> {
       return true;
     }
     return false;
+  }
+
+  bool _isTrustedOrigin(String origin) {
+    List<String> trustedHosts = [];
+    try {
+      Uri appUri = Uri.parse(Config.appLink);
+      trustedHosts.add(appUri.host);
+    } catch (e) {}
+
+    for (var item in Config.mainNavigation) {
+      if (item.type == ActionType.internal) {
+        try {
+          Uri uri = Uri.parse(item.value);
+          if (uri.host.isNotEmpty && !trustedHosts.contains(uri.host)) {
+            trustedHosts.add(uri.host);
+          }
+        } catch (e) {}
+      }
+    }
+
+    for (var item in Config.modalNavigation) {
+      if (item.type == ActionType.internal) {
+        try {
+          Uri uri = Uri.parse(item.value);
+          if (uri.host.isNotEmpty && !trustedHosts.contains(uri.host)) {
+            trustedHosts.add(uri.host);
+          }
+        } catch (e) {}
+      }
+    }
+
+    try {
+      Uri originUri = Uri.parse(origin);
+      return trustedHosts.contains(originUri.host);
+    } catch (e) {
+      return false;
+    }
   }
 
   void _openModalNavigation(String title) {
@@ -428,8 +466,11 @@ class _WebViewState extends State<WebView> {
             });
           },
           androidOnGeolocationPermissionsShowPrompt: (InAppWebViewController controller, String origin) async {
-            await Permission.location.request();
-            return Future.value(GeolocationPermissionShowPromptResponse(origin: origin, allow: true, retain: true));
+            if (Config.accessLocation && _isTrustedOrigin(origin)) {
+              await Permission.location.request();
+              return Future.value(GeolocationPermissionShowPromptResponse(origin: origin, allow: true, retain: true));
+            }
+            return Future.value(GeolocationPermissionShowPromptResponse(origin: origin, allow: false, retain: false));
           },
           shouldOverrideUrlLoading: (controller, navigationAction) async {
             var uri = navigationAction.request.url!;
@@ -467,9 +508,24 @@ class _WebViewState extends State<WebView> {
           androidOnPermissionRequest:
               (InAppWebViewController controller, String origin,
               List<String> resources) async {
+            if (_isTrustedOrigin(origin)) {
+              List<String> grantedResources = [];
+              if (resources.contains("android.webkit.resource.VIDEO_CAPTURE") && Config.accessCamera) {
+                grantedResources.add("android.webkit.resource.VIDEO_CAPTURE");
+              }
+              if (resources.contains("android.webkit.resource.AUDIO_CAPTURE") && Config.accessMicrophone) {
+                grantedResources.add("android.webkit.resource.AUDIO_CAPTURE");
+              }
+
+              if (grantedResources.isNotEmpty) {
+                return PermissionRequestResponse(
+                  resources: grantedResources,
+                  action: PermissionRequestResponseAction.GRANT);
+              }
+            }
             return PermissionRequestResponse(
                 resources: resources,
-                action: PermissionRequestResponseAction.GRANT);
+                action: PermissionRequestResponseAction.DENY);
           },
           onDownloadStart: (controller, url) async {
             checkStoragePermission().then((hasGranted) async {
