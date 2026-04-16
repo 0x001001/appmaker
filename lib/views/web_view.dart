@@ -62,11 +62,13 @@ class _WebViewState extends State<WebView> {
   );
   // active link
   String activeLink = "";
+  // cached css string
+  String _cachedCssStr = "";
   // wev view options
   InAppWebViewGroupOptions options = InAppWebViewGroupOptions(
       crossPlatform: InAppWebViewOptions(
           useShouldOverrideUrlLoading: true,
-          mediaPlaybackRequiresUserGesture: false,
+          mediaPlaybackRequiresUserGesture: true,
           supportZoom: false,
           useOnDownloadStart: true,
           horizontalScrollBarEnabled: false,
@@ -85,6 +87,15 @@ class _WebViewState extends State<WebView> {
   @override
   initState() {
     activeLink = Config.appLink;
+
+    // Cache css hide block string
+    StringBuffer cssBuffer = StringBuffer();
+    for (var item in Config.cssHideBlock) {
+      cssBuffer.write(item);
+      cssBuffer.write("{ display: none; }");
+    }
+    _cachedCssStr = cssBuffer.toString();
+
     initWebViewCollections();
     initPullToRefresh();
     super.initState();
@@ -242,18 +253,18 @@ class _WebViewState extends State<WebView> {
           urlRequest: URLRequest(url: Uri.parse(item.value))
       );
     } else if (item.type == ActionType.external) {
-      if (await canLaunch(item.value)) {
-        await launch(item.value);
+      if (await canLaunchUrl(Uri.parse(item.value))) {
+        await launchUrl(Uri.parse(item.value));
       }
     } else if (item.type == ActionType.email) {
       String email = "mailto://${item.value}";
-      if (await canLaunch(email)) {
-        await launch(email);
+      if (await canLaunchUrl(Uri.parse(email))) {
+        await launchUrl(Uri.parse(email));
       }
     } else if (item.type == ActionType.phone) {
       String phone = "tel://+${item.value}";
-      if (await canLaunch(phone)) {
-        await launch(phone);
+      if (await canLaunchUrl(Uri.parse(phone))) {
+        await launchUrl(Uri.parse(phone));
       }
     } else if (item.type == ActionType.share) {
       Share.share(
@@ -265,12 +276,8 @@ class _WebViewState extends State<WebView> {
   }
 
   void injectCss(index) {
-    String styles = "";
-    for (var item in Config.cssHideBlock) {
-      styles = styles + item + "{ display: none; }";
-    }
     webViewsCollections[index].webExplorerController?.injectCSSCode(
-        source: styles
+        source: _cachedCssStr
     );
   }
 
@@ -436,10 +443,10 @@ class _WebViewState extends State<WebView> {
             if (![ "http", "https", "file", "chrome",
               "data", "javascript", "about"].contains(uri.scheme)) {
               String url = uri.toString();
-              if (await canLaunch(url)) {
+              if (await canLaunchUrl(Uri.parse(url))) {
                 // Launch the App
-                await launch(
-                  url,
+                await launchUrl(
+                  Uri.parse(url),
                 );
                 return NavigationActionPolicy.CANCEL;
               }
@@ -467,16 +474,48 @@ class _WebViewState extends State<WebView> {
           androidOnPermissionRequest:
               (InAppWebViewController controller, String origin,
               List<String> resources) async {
+            bool isGranted = false;
+            Uri originUri = Uri.parse(origin);
+            String originHost = originUri.host;
+
+            List<String> trustedHosts = [Uri.parse(Config.appLink).host];
+            for (var item in Config.mainNavigation) {
+              if (item.type == ActionType.internal) {
+                trustedHosts.add(Uri.parse(item.value).host);
+              }
+            }
+            for (var item in Config.modalNavigation) {
+              if (item.type == ActionType.internal) {
+                trustedHosts.add(Uri.parse(item.value).host);
+              }
+            }
+
+            if (trustedHosts.contains(originHost)) {
+              isGranted = true;
+              for (var resource in resources) {
+                if (resource == 'android.webkit.resource.VIDEO_CAPTURE' && !Config.accessCamera) {
+                  isGranted = false;
+                  break;
+                }
+                if (resource == 'android.webkit.resource.AUDIO_CAPTURE' && !Config.accessMicrophone) {
+                  isGranted = false;
+                  break;
+                }
+              }
+            }
+
             return PermissionRequestResponse(
                 resources: resources,
-                action: PermissionRequestResponseAction.GRANT);
+                action: isGranted
+                    ? PermissionRequestResponseAction.GRANT
+                    : PermissionRequestResponseAction.DENY);
           },
           onDownloadStart: (controller, url) async {
             checkStoragePermission().then((hasGranted) async {
               if (hasGranted == true) {
                 String _localPath;
                 if (Platform.isIOS) {
-                  _localPath = await getApplicationDocumentsDirectory() as String;
+                  _localPath = (await getApplicationDocumentsDirectory()).path;
                 } else {
                   _localPath = '/storage/emulated/0/Download';
                 }

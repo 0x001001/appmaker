@@ -21,8 +21,8 @@ class _ErrorPageState extends State<ErrorPage> {
 
   void _openEmail() async {
     String email = "mailto://${Config.appEmail}";
-    if (await canLaunch(email)) {
-      await launch(email);
+    if (await canLaunchUrl(Uri.parse(email))) {
+      await launchUrl(Uri.parse(email));
     }
   }
 
