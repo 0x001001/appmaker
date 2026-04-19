@@ -10,6 +10,7 @@ class HexConverter extends Color {
     }
     return int.parse(hexColor, radix: 16);
   }
+
   HexConverter(final String hexColor) : super(_getColorFromHexCode(hexColor));
 }
 

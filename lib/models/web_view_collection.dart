@@ -7,6 +7,7 @@ class WebViewCollection {
   late bool isLoading;
   late String title;
   late bool error;
+  late bool canGoBack;
 
   WebViewCollection({
     this.webExplorerController,
@@ -14,7 +15,7 @@ class WebViewCollection {
     required this.url,
     required this.isLoading,
     required this.title,
-    required this.error
+    required this.error,
+    this.canGoBack = false,
   });
-
 }

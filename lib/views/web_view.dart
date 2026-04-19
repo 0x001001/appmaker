@@ -41,7 +41,6 @@ class WebView extends StatefulWidget {
 }
 
 class _WebViewState extends State<WebView> {
-
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey();
 
   final ReceivePort _port = ReceivePort();
@@ -55,30 +54,27 @@ class _WebViewState extends State<WebView> {
   // web views collections
   List<WebViewCollection> webViewsCollections = [];
   // download file
-  DownloadItem download =  DownloadItem(
-    status: false,
-    filename: "",
-    progress: 0
-  );
+  DownloadItem download =
+      DownloadItem(status: false, filename: "", progress: 0);
   // active link
   String activeLink = "";
   // wev view options
   InAppWebViewGroupOptions options = InAppWebViewGroupOptions(
-      crossPlatform: InAppWebViewOptions(
-          useShouldOverrideUrlLoading: true,
-          mediaPlaybackRequiresUserGesture: false,
-          supportZoom: false,
-          useOnDownloadStart: true,
-          horizontalScrollBarEnabled: false,
-          userAgent: Config.userAgent,
-      ),
-      android: AndroidInAppWebViewOptions(
-          useHybridComposition: true,
-          geolocationEnabled: true,
-      ),
-      ios: IOSInAppWebViewOptions(
-        allowsInlineMediaPlayback: true,
-      ),
+    crossPlatform: InAppWebViewOptions(
+      useShouldOverrideUrlLoading: true,
+      mediaPlaybackRequiresUserGesture: false,
+      supportZoom: false,
+      useOnDownloadStart: true,
+      horizontalScrollBarEnabled: false,
+      userAgent: Config.userAgent,
+    ),
+    android: AndroidInAppWebViewOptions(
+      useHybridComposition: true,
+      geolocationEnabled: true,
+    ),
+    ios: IOSInAppWebViewOptions(
+      allowsInlineMediaPlayback: true,
+    ),
   );
 
   /// *** Init view screen *** ///
@@ -88,11 +84,10 @@ class _WebViewState extends State<WebView> {
     initWebViewCollections();
     initPullToRefresh();
     super.initState();
-    Connectivity().onConnectivityChanged.
-      listen((ConnectivityResult result) {
-        debugPrint("Change network connection status");
-        changeConnectionStatus(result);
-      });
+    Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> results) {
+      debugPrint("Change network connection status");
+      changeConnectionStatus(results.isNotEmpty ? results.first : ConnectivityResult.none);
+    });
     _bindBackgroundIsolate();
     _getAccess();
   }
@@ -151,44 +146,43 @@ class _WebViewState extends State<WebView> {
     if (Config.appTemplate == Template.tabs) {
       List<NavigationItem> _items = Config.mainNavigation;
       webViewsCollections = [
-        for (var i = 0; i < _items.length; i ++)
+        for (var i = 0; i < _items.length; i++)
           if (_items[i].type == ActionType.internal)
             WebViewCollection(
-              url: _items[i].value.toString(),
-              isLoading: true,
-              title: Config.appName,
-              error: false
-            )
+                url: _items[i].value.toString(),
+                isLoading: true,
+                title: Config.appName,
+                error: false)
       ];
     } else {
       webViewsCollections = [
         WebViewCollection(
-          url: Config.appLink,
-          isLoading: true,
-          title: Config.appName,
-          error: false
-        )
+            url: Config.appLink,
+            isLoading: true,
+            title: Config.appName,
+            error: false)
       ];
     }
   }
 
-  Future<bool> canJumpBack() async {
+  bool canJumpBack() {
     try {
-      if (webViewsCollections[tabIndex]
-          .webExplorerController != null
-      ) {
-        if (await webViewsCollections[tabIndex]
-            .webExplorerController!
-            .canGoBack()) {
-          return true;
-        } else {
-          return false;
-        }
-      }
+      return webViewsCollections[tabIndex].canGoBack;
     } catch (e) {
       return false;
     }
-    return false;
+  }
+
+  void _updateCanGoBack(int index) async {
+    if (webViewsCollections[index].webExplorerController != null) {
+      bool canGoBack =
+          await webViewsCollections[index].webExplorerController!.canGoBack();
+      if (webViewsCollections[index].canGoBack != canGoBack) {
+        setState(() {
+          webViewsCollections[index].canGoBack = canGoBack;
+        });
+      }
+    }
   }
 
   void initPullToRefresh() {
@@ -198,24 +192,24 @@ class _WebViewState extends State<WebView> {
           color: Colors.grey,
         ),
         onRefresh: () async {
-            if (Platform.isAndroid) {
-              webViewsCollections[0].webExplorerController?.reload();
-            } else {
-              webViewsCollections[0].webExplorerController?.loadUrl(
-                  urlRequest: URLRequest(
-                      url: await webViewsCollections[0]
-                          .webExplorerController?.getUrl()
-                  )
-              );
-            }
+          if (Platform.isAndroid) {
+            webViewsCollections[0].webExplorerController?.reload();
+          } else {
+            webViewsCollections[0].webExplorerController?.loadUrl(
+                urlRequest: URLRequest(
+                    url: await webViewsCollections[0]
+                        .webExplorerController
+                        ?.getUrl()));
+          }
         },
       );
       return;
     }
     List<NavigationItem> _items = Config.mainNavigation;
-    for (var i = 0; i < _items.length; i ++) {
+    for (var i = 0; i < _items.length; i++) {
       if (_items[i].type == ActionType.internal) {
-        webViewsCollections[i].pullToRefreshController = PullToRefreshController(
+        webViewsCollections[i].pullToRefreshController =
+            PullToRefreshController(
           options: PullToRefreshOptions(
             color: Colors.black,
           ),
@@ -226,9 +220,8 @@ class _WebViewState extends State<WebView> {
               webViewsCollections[i].webExplorerController?.loadUrl(
                   urlRequest: URLRequest(
                       url: await webViewsCollections[i]
-                          .webExplorerController?.getUrl()
-                  )
-              );
+                          .webExplorerController
+                          ?.getUrl()));
             }
           },
         );
@@ -238,40 +231,44 @@ class _WebViewState extends State<WebView> {
 
   void navigationAction(NavigationItem item) async {
     if (item.type == ActionType.internal) {
-      webViewsCollections[tabIndex].webExplorerController?.loadUrl(
-          urlRequest: URLRequest(url: Uri.parse(item.value))
-      );
+      webViewsCollections[tabIndex]
+          .webExplorerController
+          ?.loadUrl(urlRequest: URLRequest(url: WebUri(item.value)));
     } else if (item.type == ActionType.external) {
-      if (await canLaunch(item.value)) {
-        await launch(item.value);
+      if (await canLaunchUrl(Uri.parse(item.value))) {
+        await launchUrl(Uri.parse(item.value));
       }
     } else if (item.type == ActionType.email) {
       String email = "mailto://${item.value}";
-      if (await canLaunch(email)) {
-        await launch(email);
+      if (await canLaunchUrl(Uri.parse(email))) {
+        await launchUrl(Uri.parse(email));
       }
     } else if (item.type == ActionType.phone) {
       String phone = "tel://+${item.value}";
-      if (await canLaunch(phone)) {
-        await launch(phone);
+      if (await canLaunchUrl(Uri.parse(phone))) {
+        await launchUrl(Uri.parse(phone));
       }
     } else if (item.type == ActionType.share) {
       Share.share(
-          "${webViewsCollections[tabIndex].title} ${webViewsCollections[tabIndex].url}"
-      );
+          "${webViewsCollections[tabIndex].title} ${webViewsCollections[tabIndex].url}");
     } else if (item.type == ActionType.openModal) {
       _openModalNavigation(item.name);
     }
   }
 
+  String? _cachedCssStyles;
+
   void injectCss(index) {
-    String styles = "";
-    for (var item in Config.cssHideBlock) {
-      styles = styles + item + "{ display: none; }";
+    if (_cachedCssStyles == null) {
+      StringBuffer sb = StringBuffer();
+      for (var item in Config.cssHideBlock) {
+        sb.write("$item { display: none; }");
+      }
+      _cachedCssStyles = sb.toString();
     }
-    webViewsCollections[index].webExplorerController?.injectCSSCode(
-        source: styles
-    );
+    webViewsCollections[index]
+        .webExplorerController
+        ?.injectCSSCode(source: _cachedCssStyles!);
   }
 
   void changeConnectionStatus(ConnectivityResult result) async {
@@ -296,22 +293,23 @@ class _WebViewState extends State<WebView> {
 
   Future<bool> _onBackPressed() async {
     return await showDialog(
-      context: context, builder: (context) => AlertDialog(
-      title: Text(Config.titleExit),
-      content: Text(Config.messageExit),
-      actions: <Widget>[
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: Text(Config.actionNoDownload),
-        ),
-        TextButton(
-          onPressed: () {
-            Navigator.of(context).pop(true);
-          },
-          child: Text(Config.actionYesDownload),
-        ),
-      ],
-    ));
+        context: context,
+        builder: (context) => AlertDialog(
+              title: Text(Config.titleExit),
+              content: Text(Config.messageExit),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text(Config.actionNoDownload),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(true);
+                  },
+                  child: Text(Config.actionYesDownload),
+                ),
+              ],
+            ));
   }
 
   Future<bool> checkStoragePermission() async {
@@ -347,7 +345,7 @@ class _WebViewState extends State<WebView> {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        bool status = await canJumpBack();
+        bool status = canJumpBack();
         if (status) {
           webViewsCollections[tabIndex].webExplorerController?.goBack();
           return false;
@@ -358,28 +356,31 @@ class _WebViewState extends State<WebView> {
       child: Scaffold(
         key: _scaffoldKey,
         resizeToAvoidBottomInset: false,
-        appBar: Config.appTemplate != Template.blank ? Bar(
-          title: webViewsCollections[tabIndex].title,
-          canBack: canJumpBack(),
-          onBack: () => webViewsCollections[tabIndex]
-              .webExplorerController?.goBack(),
-          onDrawer: () => _scaffoldKey.currentState!.openDrawer(),
-          onAction: (NavigationItem item) {
-            navigationAction(item);
-          },
-        ) : null,
+        appBar: Config.appTemplate != Template.blank
+            ? Bar(
+                title: webViewsCollections[tabIndex].title,
+                canBack: canJumpBack(),
+                onBack: () => webViewsCollections[tabIndex]
+                    .webExplorerController
+                    ?.goBack(),
+                onDrawer: () => _scaffoldKey.currentState!.openDrawer(),
+                onAction: (NavigationItem item) {
+                  navigationAction(item);
+                },
+              )
+            : null,
         body: SafeArea(
-          top: Config.appTemplate == Template.blank
-              ? true : false,
-          bottom: Config.appTemplate == Template.blank
-              ? true : false,
-          child: !isOffline ? IndexedStack(
-            index: tabIndex,
-            children: [
-              for (var i = 0; i < webViewsCollections.length; i ++)
-                _webBrowser(i),
-            ],
-          ) : const OfflinePage(),
+          top: Config.appTemplate == Template.blank ? true : false,
+          bottom: Config.appTemplate == Template.blank ? true : false,
+          child: !isOffline
+              ? IndexedStack(
+                  index: tabIndex,
+                  children: [
+                    for (var i = 0; i < webViewsCollections.length; i++)
+                      _webBrowser(i),
+                  ],
+                )
+              : const OfflinePage(),
         ),
         drawer: AppDrawer(
           activeLink: webViewsCollections[tabIndex].url,
@@ -388,14 +389,16 @@ class _WebViewState extends State<WebView> {
           },
         ),
         drawerEdgeDragWidth: 0,
-        bottomNavigationBar: Config.appTemplate == Template.tabs ? AppTabs(
-          currentIndex: tabIndex,
-          onTabChange: (index) {
-            setState(() {
-              tabIndex = index;
-            });
-          },
-        ) : null,
+        bottomNavigationBar: Config.appTemplate == Template.tabs
+            ? AppTabs(
+                currentIndex: tabIndex,
+                onTabChange: (index) {
+                  setState(() {
+                    tabIndex = index;
+                  });
+                },
+              )
+            : null,
       ),
     );
   }
@@ -407,10 +410,10 @@ class _WebViewState extends State<WebView> {
       children: [
         InAppWebView(
           initialUrlRequest: URLRequest(
-            url: Uri.parse(webViewsCollections[index].url),
+            url: WebUri(webViewsCollections[index].url),
             headers: {
               'Sn-Player-Id': widget.playerID.toString(),
-              'Sn-Player-Sign' : _getHashPlayer()
+              'Sn-Player-Sign': _getHashPlayer()
             },
           ),
           initialOptions: options,
@@ -420,6 +423,12 @@ class _WebViewState extends State<WebView> {
           onWebViewCreated: (InAppWebViewController controller) {
             webViewsCollections[index].webExplorerController = controller;
           },
+          onUpdateVisitedHistory: (controller, url, androidIsReload) {
+            _updateCanGoBack(index);
+          },
+          onLoadStop: (controller, url) {
+            _updateCanGoBack(index);
+          },
           onLoadStart: (controller, url) {
             setState(() {
               webViewsCollections[index].url = url.toString();
@@ -427,19 +436,28 @@ class _WebViewState extends State<WebView> {
               activeLink = url.toString();
             });
           },
-          androidOnGeolocationPermissionsShowPrompt: (InAppWebViewController controller, String origin) async {
+          androidOnGeolocationPermissionsShowPrompt:
+              (InAppWebViewController controller, String origin) async {
             await Permission.location.request();
-            return Future.value(GeolocationPermissionShowPromptResponse(origin: origin, allow: true, retain: true));
+            return Future.value(GeolocationPermissionShowPromptResponse(
+                origin: origin, allow: true, retain: true));
           },
           shouldOverrideUrlLoading: (controller, navigationAction) async {
             var uri = navigationAction.request.url!;
-            if (![ "http", "https", "file", "chrome",
-              "data", "javascript", "about"].contains(uri.scheme)) {
+            if (![
+              "http",
+              "https",
+              "file",
+              "chrome",
+              "data",
+              "javascript",
+              "about"
+            ].contains(uri.scheme)) {
               String url = uri.toString();
-              if (await canLaunch(url)) {
+              if (await canLaunchUrl(Uri.parse(url))) {
                 // Launch the App
-                await launch(
-                  url,
+                await launchUrl(
+                  Uri.parse(url),
                 );
                 return NavigationActionPolicy.CANCEL;
               }
@@ -449,7 +467,9 @@ class _WebViewState extends State<WebView> {
           onProgressChanged: (controller, progress) {
             injectCss(index);
             if (progress == 100) {
-              webViewsCollections[index].pullToRefreshController?.endRefreshing();
+              webViewsCollections[index]
+                  .pullToRefreshController
+                  ?.endRefreshing();
               setState(() {
                 webViewsCollections[index].isLoading = false;
               });
@@ -464,19 +484,38 @@ class _WebViewState extends State<WebView> {
               }
             }
           },
-          androidOnPermissionRequest:
-              (InAppWebViewController controller, String origin,
-              List<String> resources) async {
+          androidOnPermissionRequest: (InAppWebViewController controller,
+              String origin, List<String> resources) async {
+            List<String> grantedResources = [];
+            for (String resource in resources) {
+              if (resource == 'android.webkit.resource.VIDEO_CAPTURE' &&
+                  Config.accessCamera) {
+                grantedResources.add(resource);
+              } else if (resource == 'android.webkit.resource.AUDIO_CAPTURE' &&
+                  Config.accessMicrophone) {
+                grantedResources.add(resource);
+              } else if (resource != 'android.webkit.resource.VIDEO_CAPTURE' &&
+                  resource != 'android.webkit.resource.AUDIO_CAPTURE') {
+                // Grant other requests like protected media ID
+                grantedResources.add(resource);
+              }
+            }
+
+            if (grantedResources.isNotEmpty) {
+              return PermissionRequestResponse(
+                  resources: grantedResources,
+                  action: PermissionRequestResponseAction.GRANT);
+            }
             return PermissionRequestResponse(
                 resources: resources,
-                action: PermissionRequestResponseAction.GRANT);
+                action: PermissionRequestResponseAction.DENY);
           },
           onDownloadStart: (controller, url) async {
             checkStoragePermission().then((hasGranted) async {
               if (hasGranted == true) {
                 String _localPath;
                 if (Platform.isIOS) {
-                  _localPath = await getApplicationDocumentsDirectory() as String;
+                  _localPath = (await getApplicationDocumentsDirectory()).path;
                 } else {
                   _localPath = '/storage/emulated/0/Download';
                 }
@@ -525,11 +564,10 @@ class _WebViewState extends State<WebView> {
           ),
         if (Config.indicator != LoadIndicator.none)
           Loader(
-            color: Config.indicatorColor,
-            isSpinner: Config.indicator == LoadIndicator.spinner,
-            width: size.width,
-            isDisplay: webViewsCollections[index].isLoading
-          ),
+              color: Config.indicatorColor,
+              isSpinner: Config.indicator == LoadIndicator.spinner,
+              width: size.width,
+              isDisplay: webViewsCollections[index].isLoading),
         if (download.status)
           Downloader(
             filename: download.filename,
@@ -538,5 +576,4 @@ class _WebViewState extends State<WebView> {
       ],
     );
   }
-
 }

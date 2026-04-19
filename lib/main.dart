@@ -7,9 +7,7 @@ import 'helpers/hex_converter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await FlutterDownloader.initialize(
-      debug: true
-  );
+  await FlutterDownloader.initialize(debug: true);
   runApp(const WebApp());
 }
 
