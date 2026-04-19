@@ -6,11 +6,9 @@ class NavigationItem {
   final ActionType type;
   final String value;
 
-  NavigationItem({
-    required this.name,
-    required this.icon,
-    required this.type,
-    required this.value
-  });
-
+  NavigationItem(
+      {required this.name,
+      required this.icon,
+      required this.type,
+      required this.value});
 }

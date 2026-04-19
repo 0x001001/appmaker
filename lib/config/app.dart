@@ -6,7 +6,6 @@ import '../enum/load_indicator.dart';
 import '../enum/template.dart';
 
 class Config {
-
   /// *** App config *** ///
   // App name
   static String appName = "Codecanyon";
@@ -83,13 +82,19 @@ class Config {
   // App ID
   static String osAppID = "79224610-f8e6-4659-a6e2-d3bb9175cb19";
   // Signing
-  static String osSigning = "bb08a651499a8d8b9e499c1da2f7935ed432717f0d98993dd0300cd5461c5b20";
+  static String osSigning =
+      "bb08a651499a8d8b9e499c1da2f7935ed432717f0d98993dd0300cd5461c5b20";
   // Enabled android?
   static bool osAndroidEnabled = true;
 
   /// *** Website styles *** ///
   // List div for hide in app
-  static List<String> cssHideBlock = [".shared-global_header-mobile_menu_component__headerMobile", ".shared-global_header-global_header_component__desktopHeader", ".canvas__header", ".shared-global_header-global_header_component__headerWrapper"];
+  static List<String> cssHideBlock = [
+    ".shared-global_header-mobile_menu_component__headerMobile",
+    ".shared-global_header-global_header_component__desktopHeader",
+    ".canvas__header",
+    ".shared-global_header-global_header_component__headerWrapper"
+  ];
 
   /// *** Localization *** ///
   // Name offline image
@@ -97,7 +102,8 @@ class Config {
   // Error internet connection (offline)
   static String messageErrorOffline = "No internet connection";
   // Error open web page
-  static String messageErrorBrowser = "Failed to load the page. Please try again later!";
+  static String messageErrorBrowser =
+      "Failed to load the page. Please try again later!";
   // Name error page image
   static String errorBrowserImage = "error.png";
   // Title about exit from app (Android)
@@ -117,82 +123,70 @@ class Config {
   // Main app navigation
   static List<NavigationItem> mainNavigation = [
     NavigationItem(
-      name: "Home",
-      icon: "home-outline.svg",
-      type: ActionType.internal,
-      value: "https://codecanyon.net/"
-    ),
+        name: "Home",
+        icon: "home-outline.svg",
+        type: ActionType.internal,
+        value: "https://codecanyon.net/"),
     NavigationItem(
-      name: "Market",
-      icon: "albums-outline.svg",
-      type: ActionType.internal,
-      value: "https://codecanyon.net/category/mobile"
-    ),
+        name: "Market",
+        icon: "albums-outline.svg",
+        type: ActionType.internal,
+        value: "https://codecanyon.net/category/mobile"),
     NavigationItem(
-      name: "Cart",
-      icon: "cart-outline.svg",
-      type: ActionType.internal,
-      value: "https://codecanyon.net/cart"
-    ),
+        name: "Cart",
+        icon: "cart-outline.svg",
+        type: ActionType.internal,
+        value: "https://codecanyon.net/cart"),
     NavigationItem(
-      name: "Most popular",
-      icon: "flame-outline.svg",
-      type: ActionType.internal,
-      value: "https://codecanyon.net/top-sellers"
-    ),
+        name: "Most popular",
+        icon: "flame-outline.svg",
+        type: ActionType.internal,
+        value: "https://codecanyon.net/top-sellers"),
     NavigationItem(
-      name: "Forum",
-      icon: "chatbubbles-outline.svg",
-      type: ActionType.internal,
-      value: "https://forums.envato.com/"
-    )
+        name: "Forum",
+        icon: "chatbubbles-outline.svg",
+        type: ActionType.internal,
+        value: "https://forums.envato.com/")
   ];
   // Bar app navigation
   static List<NavigationItem> barNavigation = [
     NavigationItem(
-      name: "Share",
-      icon: "share-social-outline.svg",
-      type: ActionType.share,
-      value: ""
-    ),
+        name: "Share",
+        icon: "share-social-outline.svg",
+        type: ActionType.share,
+        value: ""),
     NavigationItem(
-      name: "Help center",
-      icon: "ellipsis-horizontal-outline.svg",
-      type: ActionType.openModal,
-      value: ""
-    )
+        name: "Help center",
+        icon: "ellipsis-horizontal-outline.svg",
+        type: ActionType.openModal,
+        value: "")
   ];
   // Modal app navigation
   static List<NavigationItem> modalNavigation = [
     NavigationItem(
-      name: "Buying and Item Support",
-      icon: "help-buoy-outline.svg",
-      type: ActionType.internal,
-      value: "https://help.market.envato.com/hc/en-us/categories/200216004"
-    ),
+        name: "Buying and Item Support",
+        icon: "help-buoy-outline.svg",
+        type: ActionType.internal,
+        value: "https://help.market.envato.com/hc/en-us/categories/200216004"),
     NavigationItem(
-      name: "Licenses",
-      icon: "cube-outline.svg",
-      type: ActionType.internal,
-      value: "https://help.market.envato.com/hc/en-us/sections/200616950"
-    ),
+        name: "Licenses",
+        icon: "cube-outline.svg",
+        type: ActionType.internal,
+        value: "https://help.market.envato.com/hc/en-us/sections/200616950"),
     NavigationItem(
-      name: "Your Account",
-      icon: "person-circle-outline.svg",
-      type: ActionType.internal,
-      value: "https://help.market.envato.com/hc/en-us/categories/200211970"
-    ),
+        name: "Your Account",
+        icon: "person-circle-outline.svg",
+        type: ActionType.internal,
+        value: "https://help.market.envato.com/hc/en-us/categories/200211970"),
     NavigationItem(
-      name: "Copyright and Trademarks",
-      icon: "ribbon-outline.svg",
-      type: ActionType.internal,
-      value: "https://help.market.envato.com/hc/en-us/categories/200211980"
-    ),
+        name: "Copyright and Trademarks",
+        icon: "ribbon-outline.svg",
+        type: ActionType.internal,
+        value: "https://help.market.envato.com/hc/en-us/categories/200211980"),
     NavigationItem(
-      name: "Tax & Compliance",
-      icon: "card-outline.svg",
-      type: ActionType.internal,
-      value: "https://help.market.envato.com/hc/en-us/categories/200211990"
-    ),
+        name: "Tax & Compliance",
+        icon: "card-outline.svg",
+        type: ActionType.internal,
+        value: "https://help.market.envato.com/hc/en-us/categories/200211990"),
   ];
 }

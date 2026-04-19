@@ -3,9 +3,5 @@ class DownloadItem {
   late String filename;
   late int progress;
 
-  DownloadItem({
-    this.status = false,
-    this.filename = "",
-    this.progress = 0
-  });
+  DownloadItem({this.status = false, this.filename = "", this.progress = 0});
 }

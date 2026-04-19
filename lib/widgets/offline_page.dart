@@ -4,9 +4,8 @@ import 'package:flutter/material.dart';
 import '../config/app.dart';
 
 class OfflinePage extends StatefulWidget {
-
-  const OfflinePage({Key? key,
-
+  const OfflinePage({
+    Key? key,
   }) : super(key: key);
 
   @override
@@ -14,7 +13,6 @@ class OfflinePage extends StatefulWidget {
 }
 
 class _OfflinePageState extends State<OfflinePage> {
-
   final Color color = HexConverter(Config.color);
 
   @override
@@ -28,24 +26,22 @@ class _OfflinePageState extends State<OfflinePage> {
           children: [
             Padding(
               padding: const EdgeInsets.only(bottom: 20),
-              child: Image.asset(
-                  "assets/app/${Config.offlineImage}",
-                  width: 250
-              ),
+              child:
+                  Image.asset("assets/app/${Config.offlineImage}", width: 250),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 20),
-              child: Text(Config.messageErrorOffline, style: const TextStyle(
-                  decoration: TextDecoration.none,
-                  color: Colors.black,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600
-              ), textAlign: TextAlign.center),
+              child: Text(Config.messageErrorOffline,
+                  style: const TextStyle(
+                      decoration: TextDecoration.none,
+                      color: Colors.black,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600),
+                  textAlign: TextAlign.center),
             ),
           ],
         ),
       ),
     );
   }
-
 }
