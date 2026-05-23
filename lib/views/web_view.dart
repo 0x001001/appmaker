@@ -4,6 +4,7 @@ import 'dart:isolate';
 import 'dart:ui';
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flangapp_app/enum/action_type.dart';
@@ -66,7 +67,7 @@ class _WebViewState extends State<WebView> {
   InAppWebViewGroupOptions options = InAppWebViewGroupOptions(
       crossPlatform: InAppWebViewOptions(
           useShouldOverrideUrlLoading: true,
-          mediaPlaybackRequiresUserGesture: false,
+          mediaPlaybackRequiresUserGesture: true,
           supportZoom: false,
           useOnDownloadStart: true,
           horizontalScrollBarEnabled: false,
@@ -242,18 +243,18 @@ class _WebViewState extends State<WebView> {
           urlRequest: URLRequest(url: Uri.parse(item.value))
       );
     } else if (item.type == ActionType.external) {
-      if (await canLaunch(item.value)) {
-        await launch(item.value);
+      if (await canLaunchUrl(Uri.parse(item.value))) {
+        await launchUrl(Uri.parse(item.value));
       }
     } else if (item.type == ActionType.email) {
-      String email = "mailto://${item.value}";
-      if (await canLaunch(email)) {
-        await launch(email);
+      String email = "mailto:${item.value}";
+      if (await canLaunchUrl(Uri.parse(email))) {
+        await launchUrl(Uri.parse(email));
       }
     } else if (item.type == ActionType.phone) {
-      String phone = "tel://+${item.value}";
-      if (await canLaunch(phone)) {
-        await launch(phone);
+      String phone = "tel:+${item.value}";
+      if (await canLaunchUrl(Uri.parse(phone))) {
+        await launchUrl(Uri.parse(phone));
       }
     } else if (item.type == ActionType.share) {
       Share.share(
@@ -265,12 +266,13 @@ class _WebViewState extends State<WebView> {
   }
 
   void injectCss(index) {
-    String styles = "";
+    StringBuffer stylesBuffer = StringBuffer();
     for (var item in Config.cssHideBlock) {
-      styles = styles + item + "{ display: none; }";
+      stylesBuffer.write(item);
+      stylesBuffer.write("{ display: none; }");
     }
     webViewsCollections[index].webExplorerController?.injectCSSCode(
-        source: styles
+        source: stylesBuffer.toString()
     );
   }
 
@@ -345,14 +347,23 @@ class _WebViewState extends State<WebView> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) {
+          return;
+        }
         bool status = await canJumpBack();
         if (status) {
           webViewsCollections[tabIndex].webExplorerController?.goBack();
-          return false;
         } else {
-          return _onBackPressed();
+          bool shouldPop = await _onBackPressed();
+          if (shouldPop) {
+            // Unfocus any text fields to avoid keyboard issues
+            FocusScope.of(context).unfocus();
+            // Exit the app instead of popping the locked route
+            SystemNavigator.pop();
+          }
         }
       },
       child: Scaffold(
@@ -436,10 +447,10 @@ class _WebViewState extends State<WebView> {
             if (![ "http", "https", "file", "chrome",
               "data", "javascript", "about"].contains(uri.scheme)) {
               String url = uri.toString();
-              if (await canLaunch(url)) {
+              if (await canLaunchUrl(Uri.parse(url))) {
                 // Launch the App
-                await launch(
-                  url,
+                await launchUrl(
+                  Uri.parse(url),
                 );
                 return NavigationActionPolicy.CANCEL;
               }
@@ -476,10 +487,11 @@ class _WebViewState extends State<WebView> {
               if (hasGranted == true) {
                 String _localPath;
                 if (Platform.isIOS) {
-                  _localPath = await getApplicationDocumentsDirectory() as String;
+                  _localPath = (await getApplicationDocumentsDirectory()).path;
                 } else {
-                  _localPath = '/storage/emulated/0/Download';
+                  _localPath = (await getExternalStorageDirectory())?.path ?? '/storage/emulated/0/Download';
                 }
+                await Directory(_localPath).create(recursive: true);
                 await FlutterDownloader.enqueue(
                   url: url.toString(),
                   savedDir: _localPath,
