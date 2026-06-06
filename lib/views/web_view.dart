@@ -17,6 +17,7 @@ import 'package:flangapp_app/widgets/loader.dart';
 import 'package:flangapp_app/widgets/modal_fit.dart';
 import 'package:flangapp_app/widgets/offline_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';
@@ -63,27 +64,20 @@ class _WebViewState extends State<WebView> {
   // active link
   String activeLink = "";
   // wev view options
-  InAppWebViewGroupOptions options = InAppWebViewGroupOptions(
-      crossPlatform: InAppWebViewOptions(
-          useShouldOverrideUrlLoading: true,
-          mediaPlaybackRequiresUserGesture: false,
-          supportZoom: false,
-          useOnDownloadStart: true,
-          horizontalScrollBarEnabled: false,
-          userAgent: Config.userAgent,
-      ),
-      android: AndroidInAppWebViewOptions(
-          useHybridComposition: true,
-          geolocationEnabled: true,
-      ),
-      ios: IOSInAppWebViewOptions(
-        allowsInlineMediaPlayback: true,
-      ),
+  InAppWebViewSettings settings = InAppWebViewSettings(
+      useShouldOverrideUrlLoading: true,
+      mediaPlaybackRequiresUserGesture: true,
+      supportZoom: false,
+      useOnDownloadStart: true,
+      horizontalScrollBarEnabled: false,
+      userAgent: Config.userAgent,
+      geolocationEnabled: true,
+      allowsInlineMediaPlayback: true,
   );
 
   /// *** Init view screen *** ///
   @override
-  initState() {
+  void initState() {
     activeLink = Config.appLink;
     initWebViewCollections();
     initPullToRefresh();
@@ -194,7 +188,7 @@ class _WebViewState extends State<WebView> {
   void initPullToRefresh() {
     if (Config.appTemplate != Template.tabs) {
       webViewsCollections[0].pullToRefreshController = PullToRefreshController(
-        options: PullToRefreshOptions(
+        settings: PullToRefreshSettings(
           color: Colors.grey,
         ),
         onRefresh: () async {
@@ -216,7 +210,7 @@ class _WebViewState extends State<WebView> {
     for (var i = 0; i < _items.length; i ++) {
       if (_items[i].type == ActionType.internal) {
         webViewsCollections[i].pullToRefreshController = PullToRefreshController(
-          options: PullToRefreshOptions(
+          settings: PullToRefreshSettings(
             color: Colors.black,
           ),
           onRefresh: () async {
@@ -239,21 +233,22 @@ class _WebViewState extends State<WebView> {
   void navigationAction(NavigationItem item) async {
     if (item.type == ActionType.internal) {
       webViewsCollections[tabIndex].webExplorerController?.loadUrl(
-          urlRequest: URLRequest(url: Uri.parse(item.value))
+          urlRequest: URLRequest(url: WebUri(item.value))
       );
     } else if (item.type == ActionType.external) {
-      if (await canLaunch(item.value)) {
-        await launch(item.value);
+      final Uri url = Uri.parse(item.value);
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
       }
     } else if (item.type == ActionType.email) {
-      String email = "mailto://${item.value}";
-      if (await canLaunch(email)) {
-        await launch(email);
+      final Uri email = Uri.parse("mailto:${item.value}");
+      if (await canLaunchUrl(email)) {
+        await launchUrl(email, mode: LaunchMode.externalApplication);
       }
     } else if (item.type == ActionType.phone) {
-      String phone = "tel://+${item.value}";
-      if (await canLaunch(phone)) {
-        await launch(phone);
+      final Uri phone = Uri.parse("tel:+${item.value}");
+      if (await canLaunchUrl(phone)) {
+        await launchUrl(phone, mode: LaunchMode.externalApplication);
       }
     } else if (item.type == ActionType.share) {
       Share.share(
@@ -265,12 +260,12 @@ class _WebViewState extends State<WebView> {
   }
 
   void injectCss(index) {
-    String styles = "";
+    StringBuffer styles = StringBuffer();
     for (var item in Config.cssHideBlock) {
-      styles = styles + item + "{ display: none; }";
+      styles.write("$item{ display: none; }");
     }
     webViewsCollections[index].webExplorerController?.injectCSSCode(
-        source: styles
+        source: styles.toString()
     );
   }
 
@@ -345,14 +340,18 @@ class _WebViewState extends State<WebView> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
         bool status = await canJumpBack();
         if (status) {
           webViewsCollections[tabIndex].webExplorerController?.goBack();
-          return false;
         } else {
-          return _onBackPressed();
+          final shouldExit = await _onBackPressed();
+          if (shouldExit) {
+            SystemNavigator.pop();
+          }
         }
       },
       child: Scaffold(
@@ -407,13 +406,13 @@ class _WebViewState extends State<WebView> {
       children: [
         InAppWebView(
           initialUrlRequest: URLRequest(
-            url: Uri.parse(webViewsCollections[index].url),
+            url: WebUri(webViewsCollections[index].url),
             headers: {
               'Sn-Player-Id': widget.playerID.toString(),
               'Sn-Player-Sign' : _getHashPlayer()
             },
           ),
-          initialOptions: options,
+          initialSettings: settings,
           pullToRefreshController: Config.pullToRefresh
               ? webViewsCollections[index].pullToRefreshController
               : null,
@@ -427,19 +426,25 @@ class _WebViewState extends State<WebView> {
               activeLink = url.toString();
             });
           },
-          androidOnGeolocationPermissionsShowPrompt: (InAppWebViewController controller, String origin) async {
+          onGeolocationPermissionsShowPrompt: (InAppWebViewController controller, String origin) async {
             await Permission.location.request();
             return Future.value(GeolocationPermissionShowPromptResponse(origin: origin, allow: true, retain: true));
           },
           shouldOverrideUrlLoading: (controller, navigationAction) async {
             var uri = navigationAction.request.url!;
-            if (![ "http", "https", "file", "chrome",
-              "data", "javascript", "about"].contains(uri.scheme)) {
+
+            // Security: Prevent local file inclusion and XSS via specific schemes.
+            if (["file", "javascript", "data"].contains(uri.scheme)) {
+              return NavigationActionPolicy.CANCEL;
+            }
+
+            if (![ "http", "https", "about"].contains(uri.scheme)) {
               String url = uri.toString();
-              if (await canLaunch(url)) {
+              final parsedUri = Uri.parse(url);
+              if (await canLaunchUrl(parsedUri)) {
                 // Launch the App
-                await launch(
-                  url,
+                await launchUrl(
+                  parsedUri, mode: LaunchMode.externalApplication
                 );
                 return NavigationActionPolicy.CANCEL;
               }
@@ -464,21 +469,51 @@ class _WebViewState extends State<WebView> {
               }
             }
           },
-          androidOnPermissionRequest:
-              (InAppWebViewController controller, String origin,
-              List<String> resources) async {
-            return PermissionRequestResponse(
-                resources: resources,
-                action: PermissionRequestResponseAction.GRANT);
+          onPermissionRequest:
+              (InAppWebViewController controller, PermissionRequest permissionRequest) async {
+            final String origin = permissionRequest.origin.toString();
+            final String originHost = Uri.tryParse(origin)?.host ?? '';
+            final String appLinkHost = Uri.tryParse(Config.appLink)?.host ?? '';
+            final List<String> allowedHosts = [appLinkHost];
+
+            for (var item in Config.mainNavigation) {
+              if (item.type == ActionType.internal) {
+                 final host = Uri.tryParse(item.value)?.host;
+                 if (host != null) allowedHosts.add(host);
+              }
+            }
+            for (var item in Config.modalNavigation) {
+              if (item.type == ActionType.internal) {
+                 final host = Uri.tryParse(item.value)?.host;
+                 if (host != null) allowedHosts.add(host);
+              }
+            }
+
+            if (!allowedHosts.contains(originHost)) {
+              return PermissionResponse(
+                  resources: permissionRequest.resources,
+                  action: PermissionResponseAction.DENY);
+            }
+
+            return PermissionResponse(
+                resources: permissionRequest.resources,
+                action: PermissionResponseAction.GRANT);
           },
-          onDownloadStart: (controller, url) async {
+          onDownloadStartRequest: (controller, downloadStartRequest) async {
+            final Uri url = downloadStartRequest.url;
             checkStoragePermission().then((hasGranted) async {
               if (hasGranted == true) {
                 String _localPath;
                 if (Platform.isIOS) {
-                  _localPath = await getApplicationDocumentsDirectory() as String;
+                  final dir = await getApplicationDocumentsDirectory();
+                  _localPath = dir.path;
                 } else {
-                  _localPath = '/storage/emulated/0/Download';
+                  final dir = await getExternalStorageDirectory() ?? await getApplicationDocumentsDirectory();
+                  _localPath = dir.path;
+                }
+                final dir = Directory(_localPath);
+                if (!await dir.exists()) {
+                  await dir.create(recursive: true);
                 }
                 await FlutterDownloader.enqueue(
                   url: url.toString(),
@@ -490,28 +525,26 @@ class _WebViewState extends State<WebView> {
               }
             });
           },
-          onLoadError: (controller, url, code, message) {
+          onReceivedError: (controller, WebResourceRequest request, WebResourceError error) {
             webViewsCollections[index].pullToRefreshController?.endRefreshing();
-            if (code == -999) {
+            if (error.type.toNativeValue() == -999 || error.type.toNativeValue() == -1) {
               return;
             }
-            if (message.isNotEmpty) {
+            if (error.description.isNotEmpty) {
               setState(() {
                 webViewsCollections[index].isLoading = false;
                 webViewsCollections[index].error = true;
               });
-              debugPrint("Fail load page code - $code");
-              debugPrint("Fail load page message - $message");
+              debugPrint("Fail load page message - ${error.description}");
             }
           },
-          onLoadHttpError: (controller, url, code, message) {
+          onReceivedHttpError: (controller, WebResourceRequest request, WebResourceResponse errorResponse) {
             webViewsCollections[index].pullToRefreshController?.endRefreshing();
-            if (message.isNotEmpty) {
+            if (errorResponse.statusCode != null && errorResponse.statusCode! >= 400) {
               setState(() {
                 webViewsCollections[index].isLoading = false;
                 webViewsCollections[index].error = true;
               });
-              debugPrint("Fail HTTP - $message");
             }
           },
         ),
