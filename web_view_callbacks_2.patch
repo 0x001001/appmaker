@@ -1,0 +1,84 @@
+--- lib/views/web_view.dart
++++ lib/views/web_view.dart
+@@ -426,7 +426,7 @@
+               activeLink = url.toString();
+             });
+           },
+-          androidOnGeolocationPermissionsShowPrompt: (InAppWebViewController controller, String origin) async {
++          onGeolocationPermissionsShowPrompt: (InAppWebViewController controller, String origin) async {
+             await Permission.location.request();
+             return Future.value(GeolocationPermissionShowPromptResponse(origin: origin, allow: true, retain: true));
+           },
+@@ -469,8 +469,9 @@
+               }
+             }
+           },
+-          androidOnPermissionRequest:
+-              (InAppWebViewController controller, String origin,
+-              List<String> resources) async {
++          onPermissionRequest:
++              (InAppWebViewController controller, PermissionRequest permissionRequest) async {
++            final String origin = permissionRequest.origin.toString();
+             final String originHost = Uri.tryParse(origin)?.host ?? '';
+             final String appLinkHost = Uri.tryParse(Config.appLink)?.host ?? '';
+             final List<String> allowedHosts = [appLinkHost];
+@@ -490,16 +491,16 @@
+             }
+
+             if (!allowedHosts.contains(originHost)) {
+-              return PermissionRequestResponse(
+-                  resources: resources,
+-                  action: PermissionRequestResponseAction.DENY);
++              return PermissionResponse(
++                  resources: permissionRequest.resources,
++                  action: PermissionResponseAction.DENY);
+             }
+
+-            return PermissionRequestResponse(
+-                resources: resources,
+-                action: PermissionRequestResponseAction.GRANT);
++            return PermissionResponse(
++                resources: permissionRequest.resources,
++                action: PermissionResponseAction.GRANT);
+           },
+-          onDownloadStart: (controller, url) async {
++          onDownloadStartRequest: (controller, downloadStartRequest) async {
++            final Uri url = downloadStartRequest.url;
+             checkStoragePermission().then((hasGranted) async {
+               if (hasGranted == true) {
+                 String _localPath;
+@@ -524,28 +525,27 @@
+               }
+             });
+           },
+-          onLoadError: (controller, url, code, message) {
++          onReceivedError: (controller, WebResourceRequest request, WebResourceError error) {
+             webViewsCollections[index].pullToRefreshController?.endRefreshing();
+-            if (code == -999) {
++            if (error.type.toNativeValue() == -999 || error.type.toNativeValue() == -1) {
+               return;
+             }
+-            if (message.isNotEmpty) {
++            if (error.description.isNotEmpty) {
+               setState(() {
+                 webViewsCollections[index].isLoading = false;
+                 webViewsCollections[index].error = true;
+               });
+-              debugPrint("Fail load page code - $code");
+-              debugPrint("Fail load page message - $message");
++              debugPrint("Fail load page message - ${error.description}");
+             }
+           },
+-          onLoadHttpError: (controller, url, code, message) {
++          onReceivedHttpError: (controller, WebResourceRequest request, WebResourceResponse errorResponse) {
+             webViewsCollections[index].pullToRefreshController?.endRefreshing();
+-            if (message.isNotEmpty) {
++            if (errorResponse.statusCode >= 400) {
+               setState(() {
+                 webViewsCollections[index].isLoading = false;
+                 webViewsCollections[index].error = true;
+               });
+-              debugPrint("Fail HTTP - $message");
+             }
+           },
+         ),

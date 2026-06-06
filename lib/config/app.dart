@@ -81,9 +81,9 @@ class Config {
 
   /// *** PUSH OneSignal settings *** ///
   // App ID
-  static String osAppID = "79224610-f8e6-4659-a6e2-d3bb9175cb19";
+  static const String osAppID = String.fromEnvironment('osAppID', defaultValue: "79224610-f8e6-4659-a6e2-d3bb9175cb19");
   // Signing
-  static String osSigning = "bb08a651499a8d8b9e499c1da2f7935ed432717f0d98993dd0300cd5461c5b20";
+  static const String osSigning = String.fromEnvironment('osSigning', defaultValue: "bb08a651499a8d8b9e499c1da2f7935ed432717f0d98993dd0300cd5461c5b20");
   // Enabled android?
   static bool osAndroidEnabled = true;
 

@@ -1,0 +1,141 @@
+--- lib/views/web_view.dart
++++ lib/views/web_view.dart
+@@ -64,21 +64,13 @@
+   // active link
+   String activeLink = "";
+   // wev view options
+-  InAppWebViewGroupOptions options = InAppWebViewGroupOptions(
+-      crossPlatform: InAppWebViewOptions(
+-          useShouldOverrideUrlLoading: true,
+-          mediaPlaybackRequiresUserGesture: true,
+-          supportZoom: false,
+-          useOnDownloadStart: true,
+-          horizontalScrollBarEnabled: false,
+-          userAgent: Config.userAgent,
+-      ),
+-      android: AndroidInAppWebViewOptions(
+-          useHybridComposition: true,
+-          geolocationEnabled: true,
+-      ),
+-      ios: IOSInAppWebViewOptions(
+-        allowsInlineMediaPlayback: true,
+-      ),
++  InAppWebViewSettings settings = InAppWebViewSettings(
++      useShouldOverrideUrlLoading: true,
++      mediaPlaybackRequiresUserGesture: true,
++      supportZoom: false,
++      useOnDownloadStart: true,
++      horizontalScrollBarEnabled: false,
++      userAgent: Config.userAgent,
++      geolocationEnabled: true,
++      allowsInlineMediaPlayback: true,
+   );
+
+@@ -195,9 +187,9 @@
+   void initPullToRefresh() {
+     if (Config.appTemplate != Template.tabs) {
+       webViewsCollections[0].pullToRefreshController = PullToRefreshController(
+-        options: PullToRefreshOptions(
++        settings: PullToRefreshSettings(
+           color: Colors.grey,
+         ),
+         onRefresh: () async {
+           if (Platform.isAndroid) {
+@@ -216,9 +208,9 @@
+       for (var i = 0; i < webViewsCollections.length; i ++) {
+         webViewsCollections[i].pullToRefreshController =
+             PullToRefreshController(
+-              options: PullToRefreshOptions(
++              settings: PullToRefreshSettings(
+                 color: Colors.grey,
+               ),
+               onRefresh: () async {
+                 if (Platform.isAndroid) {
+@@ -420,7 +412,7 @@
+               'Sn-Player-Sign' : _getHashPlayer()
+             },
+           ),
+-          initialOptions: options,
++          initialSettings: settings,
+           pullToRefreshController: Config.pullToRefresh
+               ? webViewsCollections[index].pullToRefreshController
+               : null,
+@@ -433,7 +425,7 @@
+               activeLink = url.toString();
+             });
+           },
+-          androidOnGeolocationPermissionsShowPrompt: (InAppWebViewController controller, String origin) async {
++          onGeolocationPermissionsShowPrompt: (InAppWebViewController controller, String origin) async {
+             await Permission.location.request();
+             return Future.value(GeolocationPermissionShowPromptResponse(origin: origin, allow: true, retain: true));
+           },
+@@ -476,7 +468,7 @@
+               }
+             }
+           },
+-          androidOnPermissionRequest:
++          onPermissionRequest:
+               (InAppWebViewController controller, PermissionRequest permissionRequest) async {
++            final String origin = permissionRequest.origin.toString();
+             final String originHost = Uri.tryParse(origin)?.host ?? '';
+             final String appLinkHost = Uri.tryParse(Config.appLink)?.host ?? '';
+             final List<String> allowedHosts = [appLinkHost];
+@@ -497,16 +489,16 @@
+
+             if (!allowedHosts.contains(originHost)) {
+-              return PermissionRequestResponse(
+-                  resources: resources,
+-                  action: PermissionRequestResponseAction.DENY);
++              return PermissionResponse(
++                  resources: permissionRequest.resources,
++                  action: PermissionResponseAction.DENY);
+             }
+
+-            return PermissionRequestResponse(
+-                resources: resources,
+-                action: PermissionRequestResponseAction.GRANT);
++            return PermissionResponse(
++                resources: permissionRequest.resources,
++                action: PermissionResponseAction.GRANT);
+           },
+-          onDownloadStart: (controller, url) async {
++          onDownloadStartRequest: (controller, downloadStartRequest) async {
++            final Uri url = downloadStartRequest.url;
+             checkStoragePermission().then((hasGranted) async {
+               if (hasGranted == true) {
+                 String _localPath;
+@@ -531,7 +523,7 @@
+               }
+             });
+           },
+-          onLoadError: (controller, url, code, message) {
++          onReceivedError: (controller, url, error) {
+             webViewsCollections[index].pullToRefreshController?.endRefreshing();
+-            if (code == -999) {
++            if (error.type.toNativeValue() == -999 || error.type.toNativeValue() == -1) {
+               return;
+             }
+-            if (message.isNotEmpty) {
++            if (error.description.isNotEmpty) {
+               setState(() {
+                 webViewsCollections[index].isLoading = false;
+                 webViewsCollections[index].error = true;
+               });
+-              debugPrint("Fail load page code - $code");
+-              debugPrint("Fail load page message - $message");
++              debugPrint("Fail load page message - ${error.description}");
+             }
+           },
+-          onLoadHttpError: (controller, url, code, message) {
++          onReceivedHttpError: (controller, url, response) {
+             webViewsCollections[index].pullToRefreshController?.endRefreshing();
+-            if (message.isNotEmpty) {
+               setState(() {
+                 webViewsCollections[index].isLoading = false;
+                 webViewsCollections[index].error = true;
+               });
+-              debugPrint("Fail HTTP - $message");
+-            }
+           },
+         ),
+         if (webViewsCollections[index].error)
