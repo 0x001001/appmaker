@@ -8,13 +8,11 @@ class WebViewCollection {
   late String title;
   late bool error;
 
-  WebViewCollection({
-    this.webExplorerController,
-    this.pullToRefreshController,
-    required this.url,
-    required this.isLoading,
-    required this.title,
-    required this.error
-  });
-
+  WebViewCollection(
+      {this.webExplorerController,
+      this.pullToRefreshController,
+      required this.url,
+      required this.isLoading,
+      required this.title,
+      required this.error});
 }

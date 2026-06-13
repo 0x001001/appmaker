@@ -10,29 +10,29 @@ class Loader extends StatefulWidget {
   final double width;
   final bool isDisplay;
 
-  const Loader({Key? key,
-    required this.color,
-    required this.isSpinner,
-    required this.width,
-    required this.isDisplay
-  }) : super(key: key);
+  const Loader(
+      {Key? key,
+      required this.color,
+      required this.isSpinner,
+      required this.width,
+      required this.isDisplay})
+      : super(key: key);
 
   @override
   _LoaderState createState() => _LoaderState();
 }
 
 class _LoaderState extends State<Loader> {
-
   @override
   Widget build(BuildContext context) {
     Color color = HexConverter(widget.color);
     return !widget.isDisplay
         ? const SizedBox(width: 0, height: 0)
         : widget.isSpinner
-          ? Platform.isAndroid
-            ? _androidCircularLoader(color)
-            : _iOsCircularLoader(color)
-          : _lineLoader(color);
+            ? Platform.isAndroid
+                ? _androidCircularLoader(color)
+                : _iOsCircularLoader(color)
+            : _lineLoader(color);
   }
 
   Widget _lineLoader(Color color) {
@@ -40,7 +40,7 @@ class _LoaderState extends State<Loader> {
       child: LinearProgressIndicator(
         minHeight: 2,
         valueColor: AlwaysStoppedAnimation<Color>(color),
-        backgroundColor: Colors.grey.withOpacity(0.9),
+        backgroundColor: Colors.grey.withValues(alpha: 0.9),
       ),
       top: 0,
       width: widget.width,
@@ -76,5 +76,4 @@ class _LoaderState extends State<Loader> {
       ),
     );
   }
-
 }

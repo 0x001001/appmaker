@@ -10,21 +10,18 @@ import '../helpers/hex_converter.dart';
 import '../models/navigation_item.dart';
 
 class AppTabs extends StatefulWidget {
-
   final Function onTabChange;
   final int currentIndex;
 
-  const AppTabs({Key? key,
-    required this.onTabChange,
-    required this.currentIndex
-  }) : super(key: key);
+  const AppTabs(
+      {Key? key, required this.onTabChange, required this.currentIndex})
+      : super(key: key);
 
   @override
   _AppTabsState createState() => _AppTabsState();
 }
 
 class _AppTabsState extends State<AppTabs> {
-
   final Color primaryColor = HexConverter(Config.activeColor);
   final List<NavigationItem> _items = Config.mainNavigation;
 
@@ -36,10 +33,11 @@ class _AppTabsState extends State<AppTabs> {
   Widget _androidTabBar() {
     return BottomNavigationBar(
       items: [
-        for (var i = 0; i < _items.length; i ++)
+        for (var i = 0; i < _items.length; i++)
           if (_items[i].type == ActionType.internal)
             BottomNavigationBarItem(
-              icon: SvgPicture.asset("assets/app/${_items[i].icon}",
+              icon: SvgPicture.asset(
+                "assets/app/${_items[i].icon}",
                 color: i != widget.currentIndex
                     ? Colors.grey.shade600
                     : primaryColor,
@@ -56,9 +54,7 @@ class _AppTabsState extends State<AppTabs> {
       type: BottomNavigationBarType.fixed,
       unselectedFontSize: 11,
       selectedFontSize: 11,
-      unselectedLabelStyle: TextStyle(
-          color: Colors.grey.shade600
-      ),
+      unselectedLabelStyle: TextStyle(color: Colors.grey.shade600),
       onTap: _onItemTapped,
     );
   }
@@ -66,10 +62,11 @@ class _AppTabsState extends State<AppTabs> {
   Widget _iosTabBar() {
     return CupertinoTabBar(
       items: [
-        for (var i = 0; i < _items.length; i ++)
+        for (var i = 0; i < _items.length; i++)
           if (_items[i].type == ActionType.internal)
             BottomNavigationBarItem(
-              icon: SvgPicture.asset("assets/app/${_items[i].icon}",
+              icon: SvgPicture.asset(
+                "assets/app/${_items[i].icon}",
                 color: i != widget.currentIndex
                     ? Colors.grey.shade600
                     : primaryColor,
@@ -90,5 +87,4 @@ class _AppTabsState extends State<AppTabs> {
   void _onItemTapped(int index) {
     widget.onTabChange(index);
   }
-
 }

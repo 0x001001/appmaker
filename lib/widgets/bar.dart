@@ -10,20 +10,20 @@ import '../enum/template.dart';
 import '../models/navigation_item.dart';
 
 class Bar extends StatefulWidget implements PreferredSizeWidget {
-
   final String title;
   final Future<bool> canBack;
   final VoidCallback onBack;
   final VoidCallback onDrawer;
   final Function onAction;
 
-  const Bar({Key? key,
-    required this.title,
-    required this.canBack,
-    required this.onBack,
-    required this.onDrawer,
-    required this.onAction
-  }) : super(key: key);
+  const Bar(
+      {Key? key,
+      required this.title,
+      required this.canBack,
+      required this.onBack,
+      required this.onDrawer,
+      required this.onAction})
+      : super(key: key);
 
   @override
   _BarState createState() => _BarState();
@@ -33,14 +33,12 @@ class Bar extends StatefulWidget implements PreferredSizeWidget {
 }
 
 class _BarState extends State<Bar> {
-
   final String _iconBackChevron = "assets/system/chevron-back-outline.svg";
   final String _iconBackArrow = "assets/system/arrow-back-outline.svg";
   final String _iconMenu = "assets/system/menu-outline.svg";
   final Color background = HexConverter(Config.color);
   final Color textColor = Config.isDark ? Colors.white : Colors.black;
   final List<NavigationItem> barNavigationItems = Config.barNavigation;
-
 
   @override
   Widget build(BuildContext context) {
@@ -55,9 +53,12 @@ class _BarState extends State<Bar> {
   Widget _iOSBar(AsyncSnapshot<bool> snapshot) {
     return CupertinoNavigationBar(
       backgroundColor: background,
-      middle: Text(widget.title, style: TextStyle(
-        color: textColor,
-      ), overflow: TextOverflow.ellipsis, maxLines: 1),
+      middle: Text(widget.title,
+          style: TextStyle(
+            color: textColor,
+          ),
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1),
       brightness: Config.isDark ? Brightness.dark : Brightness.light,
       leading: snapshot.hasData ? _iOSLeading(snapshot.data) : null,
       trailing: _iOSTrailing(),
@@ -68,7 +69,7 @@ class _BarState extends State<Bar> {
     if (canBack == true) {
       return CupertinoButton(
         padding: const EdgeInsets.only(top: 0, bottom: 0, left: 0, right: 18),
-        minSize: 0,
+        minimumSize: Size.zero,
         child: SvgPicture.asset(
           _iconBackChevron,
           color: Config.isDark ? Colors.white : Colors.black,
@@ -80,7 +81,7 @@ class _BarState extends State<Bar> {
     if (canBack == false && Config.appTemplate == Template.drawer) {
       return CupertinoButton(
         padding: const EdgeInsets.only(top: 0, bottom: 0, left: 0, right: 18),
-        minSize: 0,
+        minimumSize: Size.zero,
         child: SvgPicture.asset(
           _iconMenu,
           color: Config.isDark ? Colors.white : Colors.black,
@@ -97,7 +98,7 @@ class _BarState extends State<Bar> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for(final item in barNavigationItems)
+        for (final item in barNavigationItems)
           CupertinoButton(
             child: SvgPicture.asset(
               "assets/app/${item.icon}",
@@ -106,7 +107,7 @@ class _BarState extends State<Bar> {
             ),
             onPressed: () => widget.onAction(item),
             padding: const EdgeInsets.only(left: 14),
-            minSize: 0,
+            minimumSize: Size.zero,
           )
       ],
     );
@@ -116,12 +117,13 @@ class _BarState extends State<Bar> {
     return AppBar(
       automaticallyImplyLeading: false,
       backgroundColor: background,
-      title: Text(widget.title, style: TextStyle(
-        color: textColor,
-      )),
+      title: Text(widget.title,
+          style: TextStyle(
+            color: textColor,
+          )),
       leading: snapshot.hasData ? _androidLeading(snapshot.data) : null,
       actions: [
-        for(final item in barNavigationItems)
+        for (final item in barNavigationItems)
           IconButton(
             icon: SvgPicture.asset(
               "assets/app/${item.icon}",
@@ -151,24 +153,25 @@ class _BarState extends State<Bar> {
           _display = false;
         }
       }
-      return _display ? IconButton(
-        icon: SvgPicture.asset(
-          _icon,
-          color: textColor,
-          width: 25,
-        ),
-        color: textColor,
-        onPressed: () {
-          if (canBack == true) {
-            widget.onBack();
-          } else {
-            widget.onDrawer();
-          }
-        },
-      ) : null;
+      return _display
+          ? IconButton(
+              icon: SvgPicture.asset(
+                _icon,
+                color: textColor,
+                width: 25,
+              ),
+              color: textColor,
+              onPressed: () {
+                if (canBack == true) {
+                  widget.onBack();
+                } else {
+                  widget.onDrawer();
+                }
+              },
+            )
+          : null;
     } else {
       return null;
     }
   }
-
 }
