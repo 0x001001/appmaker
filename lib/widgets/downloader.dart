@@ -1,4 +1,3 @@
-
 import 'package:flangapp_app/config/app.dart';
 import 'package:flangapp_app/helpers/hex_converter.dart';
 import 'package:flutter/material.dart';
@@ -7,17 +6,14 @@ class Downloader extends StatefulWidget {
   final String filename;
   final int progress;
 
-  const Downloader({Key? key,
-    required this.filename,
-    required this.progress
-  }) : super(key: key);
+  const Downloader({Key? key, required this.filename, required this.progress})
+      : super(key: key);
 
   @override
   _DownloaderState createState() => _DownloaderState();
 }
 
 class _DownloaderState extends State<Downloader> {
-
   @override
   Widget build(BuildContext context) {
     Color color = HexConverter(Config.color);
@@ -34,7 +30,7 @@ class _DownloaderState extends State<Downloader> {
                 BoxShadow(
                   offset: const Offset(0, 1),
                   blurRadius: 5,
-                  color: Colors.black.withOpacity(0.3),
+                  color: Colors.black.withValues(alpha: 0.3),
                 ),
               ],
             ),
@@ -50,7 +46,7 @@ class _DownloaderState extends State<Downloader> {
                   value: widget.progress / 100,
                   semanticsLabel: 'Linear progress indicator',
                   color: color,
-                  backgroundColor: color.withOpacity(0.5),
+                  backgroundColor: color.withValues(alpha: 0.5),
                 ),
               ],
             ),
@@ -62,5 +58,4 @@ class _DownloaderState extends State<Downloader> {
       left: 0,
     );
   }
-
 }

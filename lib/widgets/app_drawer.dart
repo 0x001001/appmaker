@@ -7,31 +7,26 @@ import '../enum/background_mode.dart';
 import '../models/navigation_item.dart';
 
 class AppDrawer extends StatefulWidget {
-
   final String activeLink;
   final Function onAction;
 
-  const AppDrawer({Key? key,
-    required this.activeLink,
-    required this.onAction
-  }) : super(key: key);
+  const AppDrawer({Key? key, required this.activeLink, required this.onAction})
+      : super(key: key);
 
   @override
   _AppDrawerState createState() => _AppDrawerState();
 }
 
 class _AppDrawerState extends State<AppDrawer> {
-
   @override
   Widget build(BuildContext context) {
     Color _color = HexConverter(Config.iconColor);
     List<NavigationItem> _items = Config.mainNavigation;
     return Drawer(
       child: SafeArea(
-        top: Config.drawerBackgroundMode == BackgroundMode.none
-            ? true : false,
-        bottom: Config.drawerBackgroundMode == BackgroundMode.none
-            ? true : false,
+        top: Config.drawerBackgroundMode == BackgroundMode.none ? true : false,
+        bottom:
+            Config.drawerBackgroundMode == BackgroundMode.none ? true : false,
         child: ListView.builder(
           padding: const EdgeInsets.only(top: 0),
           itemCount: _items.isEmpty ? 0 : _items.length + 1,
@@ -50,14 +45,10 @@ class _AppDrawerState extends State<AppDrawer> {
                 color: _color,
                 width: 25,
               ),
-              title: Text(_items[index].name, style: const TextStyle(
-                  fontSize: 17,
-                  color: Colors.black
-              )),
-              selected: _items[index].value == widget.activeLink
-                  ? true
-                  : false,
-              selectedTileColor: _color.withOpacity(0.2),
+              title: Text(_items[index].name,
+                  style: const TextStyle(fontSize: 17, color: Colors.black)),
+              selected: _items[index].value == widget.activeLink ? true : false,
+              selectedTileColor: _color.withValues(alpha: 0.2),
               onTap: () {
                 Navigator.of(context).pop();
                 widget.onAction(_items[index]);
@@ -81,17 +72,19 @@ class _AppDrawerState extends State<AppDrawer> {
                 : null,
             image: Config.drawerBackgroundMode == BackgroundMode.image
                 ? DecorationImage(
-                image: AssetImage("assets/app/${Config.drawerBackgroundImage}"),
-                fit: BoxFit.cover)
-                : null
-        ),
-        child: Config.drawerBackgroundMode != BackgroundMode.none ? SafeArea(
-          bottom: false,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: _logoHead(),
-          ),
-        ) : null,
+                    image: AssetImage(
+                        "assets/app/${Config.drawerBackgroundImage}"),
+                    fit: BoxFit.cover)
+                : null),
+        child: Config.drawerBackgroundMode != BackgroundMode.none
+            ? SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: _logoHead(),
+                ),
+              )
+            : null,
       ),
     );
   }
@@ -108,23 +101,26 @@ class _AppDrawerState extends State<AppDrawer> {
             mainAxisAlignment: MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(Config.drawerTitle, style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w600,
-                  color: Config.drawerIsDark ? Colors.white : Colors.black
-              ), overflow: TextOverflow.ellipsis, maxLines: 1),
+              Text(Config.drawerTitle,
+                  style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w600,
+                      color: Config.drawerIsDark ? Colors.white : Colors.black),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1),
               if (Config.drawerSubtitle.isNotEmpty)
-                Text(Config.drawerSubtitle, style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Config.drawerIsDark
-                        ? Colors.white.withOpacity(0.6)
-                        : Colors.black.withOpacity(0.6)
-                ), overflow: TextOverflow.ellipsis, maxLines: 1),
+                Text(Config.drawerSubtitle,
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Config.drawerIsDark
+                            ? Colors.white.withValues(alpha: 0.6)
+                            : Colors.black.withValues(alpha: 0.6)),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1),
             ],
           )
       ],
     );
   }
-
 }
