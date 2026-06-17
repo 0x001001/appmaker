@@ -71,7 +71,7 @@ class _BarState extends State<Bar> {
         minSize: 0,
         child: SvgPicture.asset(
           _iconBackChevron,
-          color: Config.isDark ? Colors.white : Colors.black,
+          colorFilter: ColorFilter.mode(Config.isDark ? Colors.white : Colors.black, BlendMode.srcIn),
           width: 23,
         ),
         onPressed: () => widget.onBack(),
@@ -83,7 +83,7 @@ class _BarState extends State<Bar> {
         minSize: 0,
         child: SvgPicture.asset(
           _iconMenu,
-          color: Config.isDark ? Colors.white : Colors.black,
+          colorFilter: ColorFilter.mode(Config.isDark ? Colors.white : Colors.black, BlendMode.srcIn),
           width: 23,
         ),
         onPressed: () => widget.onDrawer(),
@@ -101,7 +101,7 @@ class _BarState extends State<Bar> {
           CupertinoButton(
             child: SvgPicture.asset(
               "assets/app/${item.icon}",
-              color: Config.isDark ? Colors.white : Colors.black,
+              colorFilter: ColorFilter.mode(Config.isDark ? Colors.white : Colors.black, BlendMode.srcIn),
               width: 23,
             ),
             onPressed: () => widget.onAction(item),
@@ -125,7 +125,7 @@ class _BarState extends State<Bar> {
           IconButton(
             icon: SvgPicture.asset(
               "assets/app/${item.icon}",
-              color: textColor,
+              colorFilter: ColorFilter.mode(textColor, BlendMode.srcIn),
               semanticsLabel: item.name,
               width: 25,
             ),
@@ -154,7 +154,7 @@ class _BarState extends State<Bar> {
       return _display ? IconButton(
         icon: SvgPicture.asset(
           _icon,
-          color: textColor,
+          colorFilter: ColorFilter.mode(textColor, BlendMode.srcIn),
           width: 25,
         ),
         color: textColor,

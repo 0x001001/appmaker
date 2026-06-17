@@ -20,9 +20,9 @@ class _ErrorPageState extends State<ErrorPage> {
   final Color color = HexConverter(Config.color);
 
   void _openEmail() async {
-    String email = "mailto://${Config.appEmail}";
-    if (await canLaunch(email)) {
-      await launch(email);
+    final uri = Uri.parse("mailto:${Config.appEmail}");
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
     }
   }
 
