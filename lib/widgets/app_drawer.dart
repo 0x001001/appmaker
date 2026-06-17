@@ -47,7 +47,7 @@ class _AppDrawerState extends State<AppDrawer> {
             return ListTile(
               leading: SvgPicture.asset(
                 "assets/app/${_items[index].icon}",
-                color: _color,
+                colorFilter: ColorFilter.mode(_color, BlendMode.srcIn),
                 width: 25,
               ),
               title: Text(_items[index].name, style: const TextStyle(
