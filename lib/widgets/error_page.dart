@@ -56,8 +56,8 @@ class _ErrorPageState extends State<ErrorPage> {
               child: OutlinedButton(
                 child: Text(Config.backBtn, style: TextStyle(color: color)),
                 style: ButtonStyle(
-                  overlayColor: MaterialStateProperty.all<Color>(
-                    HexConverter(Config.color).withOpacity(0.15),
+                  overlayColor: WidgetStateProperty.all<Color>(
+                    HexConverter(Config.color).withValues(alpha: 0.15),
                   ),
                 ),
                 onPressed: widget.onBack,
@@ -66,8 +66,8 @@ class _ErrorPageState extends State<ErrorPage> {
             TextButton(
                 child: Text(Config.contactBtn, style: TextStyle(color: color)),
                 style: ButtonStyle(
-                  overlayColor: MaterialStateProperty.all<Color>(
-                    HexConverter(Config.color).withOpacity(0.15),
+                  overlayColor: WidgetStateProperty.all<Color>(
+                    HexConverter(Config.color).withValues(alpha: 0.15),
                   ),
                 ),
                 onPressed: () => _openEmail()
