@@ -30,10 +30,9 @@ class _SplashViewState extends State<SplashView> {
   Future<void> _initApp() async {
     String? playerID;
     if (Config.osAndroidEnabled) {
-      OneSignal.shared.setLogLevel(OSLogLevel.verbose, OSLogLevel.none);
-      OneSignal.shared.setAppId(Config.osAppID);
-      OSDeviceState? state = await OneSignal.shared.getDeviceState();
-      playerID = state?.userId;
+      OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
+      OneSignal.initialize(Config.osAppID);
+      playerID = OneSignal.User.pushSubscription.id;
     }
     Future.delayed(Duration(seconds: Config.splashDelay), () {
       Navigator.of(context).pushReplacement(MaterialWithModalsPageRoute(

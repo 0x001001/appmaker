@@ -68,7 +68,7 @@ class _BarState extends State<Bar> {
     if (canBack == true) {
       return CupertinoButton(
         padding: const EdgeInsets.only(top: 0, bottom: 0, left: 0, right: 18),
-        minSize: 0,
+        minimumSize: Size.zero,
         child: SvgPicture.asset(
           _iconBackChevron,
           color: Config.isDark ? Colors.white : Colors.black,
@@ -80,7 +80,7 @@ class _BarState extends State<Bar> {
     if (canBack == false && Config.appTemplate == Template.drawer) {
       return CupertinoButton(
         padding: const EdgeInsets.only(top: 0, bottom: 0, left: 0, right: 18),
-        minSize: 0,
+        minimumSize: Size.zero,
         child: SvgPicture.asset(
           _iconMenu,
           color: Config.isDark ? Colors.white : Colors.black,
@@ -106,7 +106,7 @@ class _BarState extends State<Bar> {
             ),
             onPressed: () => widget.onAction(item),
             padding: const EdgeInsets.only(left: 14),
-            minSize: 0,
+            minimumSize: Size.zero,
           )
       ],
     );
