@@ -20,9 +20,12 @@ class _ErrorPageState extends State<ErrorPage> {
   final Color color = HexConverter(Config.color);
 
   void _openEmail() async {
-    String email = "mailto://${Config.appEmail}";
-    if (await canLaunch(email)) {
-      await launch(email);
+    final Uri emailLaunchUri = Uri(
+      scheme: 'mailto',
+      path: Config.appEmail,
+    );
+    if (await canLaunchUrl(emailLaunchUri)) {
+      await launchUrl(emailLaunchUri);
     }
   }
 
@@ -56,8 +59,8 @@ class _ErrorPageState extends State<ErrorPage> {
               child: OutlinedButton(
                 child: Text(Config.backBtn, style: TextStyle(color: color)),
                 style: ButtonStyle(
-                  overlayColor: MaterialStateProperty.all<Color>(
-                    HexConverter(Config.color).withOpacity(0.15),
+                  overlayColor: WidgetStateProperty.all<Color>(
+                    HexConverter(Config.color).withValues(alpha: 0.15),
                   ),
                 ),
                 onPressed: widget.onBack,
@@ -66,8 +69,8 @@ class _ErrorPageState extends State<ErrorPage> {
             TextButton(
                 child: Text(Config.contactBtn, style: TextStyle(color: color)),
                 style: ButtonStyle(
-                  overlayColor: MaterialStateProperty.all<Color>(
-                    HexConverter(Config.color).withOpacity(0.15),
+                  overlayColor: WidgetStateProperty.all<Color>(
+                    HexConverter(Config.color).withValues(alpha: 0.15),
                   ),
                 ),
                 onPressed: () => _openEmail()

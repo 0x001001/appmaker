@@ -47,7 +47,7 @@ class _AppDrawerState extends State<AppDrawer> {
             return ListTile(
               leading: SvgPicture.asset(
                 "assets/app/${_items[index].icon}",
-                color: _color,
+                colorFilter: ColorFilter.mode(_color, BlendMode.srcIn),
                 width: 25,
               ),
               title: Text(_items[index].name, style: const TextStyle(
@@ -57,7 +57,7 @@ class _AppDrawerState extends State<AppDrawer> {
               selected: _items[index].value == widget.activeLink
                   ? true
                   : false,
-              selectedTileColor: _color.withOpacity(0.2),
+              selectedTileColor: _color.withValues(alpha: 0.2),
               onTap: () {
                 Navigator.of(context).pop();
                 widget.onAction(_items[index]);
@@ -118,8 +118,8 @@ class _AppDrawerState extends State<AppDrawer> {
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: Config.drawerIsDark
-                        ? Colors.white.withOpacity(0.6)
-                        : Colors.black.withOpacity(0.6)
+                        ? Colors.white.withValues(alpha: 0.6)
+                        : Colors.black.withValues(alpha: 0.6)
                 ), overflow: TextOverflow.ellipsis, maxLines: 1),
             ],
           )
