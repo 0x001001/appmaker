@@ -40,9 +40,9 @@ class _AppTabsState extends State<AppTabs> {
           if (_items[i].type == ActionType.internal)
             BottomNavigationBarItem(
               icon: SvgPicture.asset("assets/app/${_items[i].icon}",
-                color: i != widget.currentIndex
+                colorFilter: ColorFilter.mode(i != widget.currentIndex
                     ? Colors.grey.shade600
-                    : primaryColor,
+                    : primaryColor, BlendMode.srcIn),
                 semanticsLabel: _items[i].name,
                 width: 26,
               ),
@@ -70,9 +70,9 @@ class _AppTabsState extends State<AppTabs> {
           if (_items[i].type == ActionType.internal)
             BottomNavigationBarItem(
               icon: SvgPicture.asset("assets/app/${_items[i].icon}",
-                color: i != widget.currentIndex
+                colorFilter: ColorFilter.mode(i != widget.currentIndex
                     ? Colors.grey.shade600
-                    : primaryColor,
+                    : primaryColor, BlendMode.srcIn),
                 semanticsLabel: _items[i].name,
                 width: 26,
               ),

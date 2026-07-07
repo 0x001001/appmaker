@@ -17,6 +17,7 @@ import 'package:flangapp_app/widgets/loader.dart';
 import 'package:flangapp_app/widgets/modal_fit.dart';
 import 'package:flangapp_app/widgets/offline_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';
@@ -63,22 +64,16 @@ class _WebViewState extends State<WebView> {
   // active link
   String activeLink = "";
   // wev view options
-  InAppWebViewGroupOptions options = InAppWebViewGroupOptions(
-      crossPlatform: InAppWebViewOptions(
+  InAppWebViewSettings settings = InAppWebViewSettings(
           useShouldOverrideUrlLoading: true,
           mediaPlaybackRequiresUserGesture: false,
           supportZoom: false,
           useOnDownloadStart: true,
           horizontalScrollBarEnabled: false,
           userAgent: Config.userAgent,
-      ),
-      android: AndroidInAppWebViewOptions(
           useHybridComposition: true,
           geolocationEnabled: true,
-      ),
-      ios: IOSInAppWebViewOptions(
-        allowsInlineMediaPlayback: true,
-      ),
+          allowsInlineMediaPlayback: true,
   );
 
   /// *** Init view screen *** ///
@@ -89,9 +84,9 @@ class _WebViewState extends State<WebView> {
     initPullToRefresh();
     super.initState();
     Connectivity().onConnectivityChanged.
-      listen((ConnectivityResult result) {
+      listen((List<ConnectivityResult> result) {
         debugPrint("Change network connection status");
-        changeConnectionStatus(result);
+        changeConnectionStatus(result.first);
       });
     _bindBackgroundIsolate();
     _getAccess();
@@ -194,7 +189,7 @@ class _WebViewState extends State<WebView> {
   void initPullToRefresh() {
     if (Config.appTemplate != Template.tabs) {
       webViewsCollections[0].pullToRefreshController = PullToRefreshController(
-        options: PullToRefreshOptions(
+        settings: PullToRefreshSettings(
           color: Colors.grey,
         ),
         onRefresh: () async {
@@ -216,7 +211,7 @@ class _WebViewState extends State<WebView> {
     for (var i = 0; i < _items.length; i ++) {
       if (_items[i].type == ActionType.internal) {
         webViewsCollections[i].pullToRefreshController = PullToRefreshController(
-          options: PullToRefreshOptions(
+          settings: PullToRefreshSettings(
             color: Colors.black,
           ),
           onRefresh: () async {
@@ -239,21 +234,22 @@ class _WebViewState extends State<WebView> {
   void navigationAction(NavigationItem item) async {
     if (item.type == ActionType.internal) {
       webViewsCollections[tabIndex].webExplorerController?.loadUrl(
-          urlRequest: URLRequest(url: Uri.parse(item.value))
+          urlRequest: URLRequest(url: WebUri(item.value))
       );
     } else if (item.type == ActionType.external) {
-      if (await canLaunch(item.value)) {
-        await launch(item.value);
+      final uri = Uri.parse(item.value);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
       }
     } else if (item.type == ActionType.email) {
-      String email = "mailto://${item.value}";
-      if (await canLaunch(email)) {
-        await launch(email);
+      final uri = Uri(scheme: 'mailto', path: item.value);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
       }
     } else if (item.type == ActionType.phone) {
-      String phone = "tel://+${item.value}";
-      if (await canLaunch(phone)) {
-        await launch(phone);
+      final uri = Uri(scheme: 'tel', path: '+${item.value}');
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
       }
     } else if (item.type == ActionType.share) {
       Share.share(
@@ -265,12 +261,12 @@ class _WebViewState extends State<WebView> {
   }
 
   void injectCss(index) {
-    String styles = "";
+    StringBuffer styles = StringBuffer();
     for (var item in Config.cssHideBlock) {
-      styles = styles + item + "{ display: none; }";
+      styles.write("$item{ display: none; }");
     }
     webViewsCollections[index].webExplorerController?.injectCSSCode(
-        source: styles
+        source: styles.toString()
     );
   }
 
@@ -294,8 +290,8 @@ class _WebViewState extends State<WebView> {
     return digest.toString();
   }
 
-  Future<bool> _onBackPressed() async {
-    return await showDialog(
+  Future<bool?> _onBackPressed() async {
+    return await showDialog<bool>(
       context: context, builder: (context) => AlertDialog(
       title: Text(Config.titleExit),
       content: Text(Config.messageExit),
@@ -345,14 +341,18 @@ class _WebViewState extends State<WebView> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
         bool status = await canJumpBack();
         if (status) {
           webViewsCollections[tabIndex].webExplorerController?.goBack();
-          return false;
         } else {
-          return _onBackPressed();
+          final shouldPop = await _onBackPressed();
+          if (shouldPop == true) {
+            SystemNavigator.pop();
+          }
         }
       },
       child: Scaffold(
@@ -407,13 +407,13 @@ class _WebViewState extends State<WebView> {
       children: [
         InAppWebView(
           initialUrlRequest: URLRequest(
-            url: Uri.parse(webViewsCollections[index].url),
+            url: WebUri(webViewsCollections[index].url),
             headers: {
               'Sn-Player-Id': widget.playerID.toString(),
               'Sn-Player-Sign' : _getHashPlayer()
             },
           ),
-          initialOptions: options,
+          initialSettings: settings,
           pullToRefreshController: Config.pullToRefresh
               ? webViewsCollections[index].pullToRefreshController
               : null,
@@ -427,19 +427,20 @@ class _WebViewState extends State<WebView> {
               activeLink = url.toString();
             });
           },
-          androidOnGeolocationPermissionsShowPrompt: (InAppWebViewController controller, String origin) async {
+          onGeolocationPermissionsShowPrompt: (InAppWebViewController controller, String origin) async {
             await Permission.location.request();
             return Future.value(GeolocationPermissionShowPromptResponse(origin: origin, allow: true, retain: true));
           },
           shouldOverrideUrlLoading: (controller, navigationAction) async {
             var uri = navigationAction.request.url!;
-            if (![ "http", "https", "file", "chrome",
-              "data", "javascript", "about"].contains(uri.scheme)) {
-              String url = uri.toString();
-              if (await canLaunch(url)) {
+            if (["file", "javascript", "data"].contains(uri.scheme)) {
+              return NavigationActionPolicy.CANCEL;
+            }
+            if (![ "http", "https", "chrome", "about"].contains(uri.scheme)) {
+              if (await canLaunchUrl(uri)) {
                 // Launch the App
-                await launch(
-                  url,
+                await launchUrl(
+                  uri,
                 );
                 return NavigationActionPolicy.CANCEL;
               }
@@ -464,24 +465,27 @@ class _WebViewState extends State<WebView> {
               }
             }
           },
-          androidOnPermissionRequest:
-              (InAppWebViewController controller, String origin,
-              List<String> resources) async {
-            return PermissionRequestResponse(
-                resources: resources,
-                action: PermissionRequestResponseAction.GRANT);
+          onPermissionRequest:
+              (InAppWebViewController controller, PermissionRequest permissionRequest) async {
+            return PermissionResponse(
+                resources: permissionRequest.resources,
+                action: PermissionResponseAction.GRANT);
           },
-          onDownloadStart: (controller, url) async {
+          onDownloadStartRequest: (controller, downloadStartRequest) async {
             checkStoragePermission().then((hasGranted) async {
               if (hasGranted == true) {
                 String _localPath;
                 if (Platform.isIOS) {
-                  _localPath = await getApplicationDocumentsDirectory() as String;
+                  _localPath = (await getApplicationDocumentsDirectory()).path;
                 } else {
-                  _localPath = '/storage/emulated/0/Download';
+                  _localPath = (await getExternalStorageDirectory())?.path ?? (await getApplicationDocumentsDirectory()).path;
+                }
+                final savedDir = Directory(_localPath);
+                if (!await savedDir.exists()) {
+                  await savedDir.create(recursive: true);
                 }
                 await FlutterDownloader.enqueue(
-                  url: url.toString(),
+                  url: downloadStartRequest.url.toString(),
                   savedDir: _localPath,
                   showNotification: true,
                   openFileFromNotification: true,
@@ -490,28 +494,27 @@ class _WebViewState extends State<WebView> {
               }
             });
           },
-          onLoadError: (controller, url, code, message) {
+          onReceivedError: (controller, request, error) {
             webViewsCollections[index].pullToRefreshController?.endRefreshing();
-            if (code == -999) {
+            if (error.type == WebResourceErrorType.CANCELLED || error.description.contains("net::ERR_ABORTED")) {
               return;
             }
-            if (message.isNotEmpty) {
+            if (error.description.isNotEmpty) {
               setState(() {
                 webViewsCollections[index].isLoading = false;
                 webViewsCollections[index].error = true;
               });
-              debugPrint("Fail load page code - $code");
-              debugPrint("Fail load page message - $message");
+              debugPrint("Fail load page error - ${error.description}");
             }
           },
-          onLoadHttpError: (controller, url, code, message) {
+          onReceivedHttpError: (controller, request, errorResponse) {
             webViewsCollections[index].pullToRefreshController?.endRefreshing();
-            if (message.isNotEmpty) {
+            if (errorResponse.reasonPhrase != null && errorResponse.reasonPhrase!.isNotEmpty) {
               setState(() {
                 webViewsCollections[index].isLoading = false;
                 webViewsCollections[index].error = true;
               });
-              debugPrint("Fail HTTP - $message");
+              debugPrint("Fail HTTP - ${errorResponse.reasonPhrase}");
             }
           },
         ),
