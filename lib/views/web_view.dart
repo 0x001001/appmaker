@@ -17,6 +17,7 @@ import 'package:flangapp_app/widgets/loader.dart';
 import 'package:flangapp_app/widgets/modal_fit.dart';
 import 'package:flangapp_app/widgets/offline_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';
@@ -172,23 +173,25 @@ class _WebViewState extends State<WebView> {
     }
   }
 
-  Future<bool> canJumpBack() async {
+  bool _canGoBack = false;
+
+  void _updateCanGoBack() async {
     try {
-      if (webViewsCollections[tabIndex]
-          .webExplorerController != null
-      ) {
-        if (await webViewsCollections[tabIndex]
-            .webExplorerController!
-            .canGoBack()) {
-          return true;
-        } else {
-          return false;
+      if (webViewsCollections[tabIndex].webExplorerController != null) {
+        final canGoBack = await webViewsCollections[tabIndex].webExplorerController!.canGoBack();
+        if (mounted && _canGoBack != canGoBack) {
+          setState(() {
+            _canGoBack = canGoBack;
+          });
         }
       }
     } catch (e) {
-      return false;
+      if (mounted && _canGoBack) {
+        setState(() {
+          _canGoBack = false;
+        });
+      }
     }
-    return false;
   }
 
   void initPullToRefresh() {
@@ -239,21 +242,22 @@ class _WebViewState extends State<WebView> {
   void navigationAction(NavigationItem item) async {
     if (item.type == ActionType.internal) {
       webViewsCollections[tabIndex].webExplorerController?.loadUrl(
-          urlRequest: URLRequest(url: Uri.parse(item.value))
+          urlRequest: URLRequest(url: WebUri(item.value))
       );
     } else if (item.type == ActionType.external) {
-      if (await canLaunch(item.value)) {
-        await launch(item.value);
+      final uri = Uri.parse(item.value);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
       }
     } else if (item.type == ActionType.email) {
-      String email = "mailto://${item.value}";
-      if (await canLaunch(email)) {
-        await launch(email);
+      final uri = Uri.parse("mailto:${item.value}");
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
       }
     } else if (item.type == ActionType.phone) {
-      String phone = "tel://+${item.value}";
-      if (await canLaunch(phone)) {
-        await launch(phone);
+      final uri = Uri.parse("tel:+${item.value}");
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
       }
     } else if (item.type == ActionType.share) {
       Share.share(
@@ -264,13 +268,19 @@ class _WebViewState extends State<WebView> {
     }
   }
 
+  String? _cachedCssStyles;
+
   void injectCss(index) {
-    String styles = "";
-    for (var item in Config.cssHideBlock) {
-      styles = styles + item + "{ display: none; }";
+    if (_cachedCssStyles == null) {
+      StringBuffer sb = StringBuffer();
+      for (var item in Config.cssHideBlock) {
+        sb.write(item);
+        sb.write("{ display: none; }");
+      }
+      _cachedCssStyles = sb.toString();
     }
     webViewsCollections[index].webExplorerController?.injectCSSCode(
-        source: styles
+        source: _cachedCssStyles!
     );
   }
 
@@ -345,14 +355,17 @@ class _WebViewState extends State<WebView> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        bool status = await canJumpBack();
-        if (status) {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        if (_canGoBack) {
           webViewsCollections[tabIndex].webExplorerController?.goBack();
-          return false;
         } else {
-          return _onBackPressed();
+          bool shouldExit = await _onBackPressed();
+          if (shouldExit) {
+            SystemNavigator.pop();
+          }
         }
       },
       child: Scaffold(
@@ -360,7 +373,7 @@ class _WebViewState extends State<WebView> {
         resizeToAvoidBottomInset: false,
         appBar: Config.appTemplate != Template.blank ? Bar(
           title: webViewsCollections[tabIndex].title,
-          canBack: canJumpBack(),
+          canBack: Future.value(_canGoBack),
           onBack: () => webViewsCollections[tabIndex]
               .webExplorerController?.goBack(),
           onDrawer: () => _scaffoldKey.currentState!.openDrawer(),
@@ -394,6 +407,7 @@ class _WebViewState extends State<WebView> {
             setState(() {
               tabIndex = index;
             });
+            _updateCanGoBack();
           },
         ) : null,
       ),
@@ -407,7 +421,7 @@ class _WebViewState extends State<WebView> {
       children: [
         InAppWebView(
           initialUrlRequest: URLRequest(
-            url: Uri.parse(webViewsCollections[index].url),
+            url: WebUri(webViewsCollections[index].url),
             headers: {
               'Sn-Player-Id': widget.playerID.toString(),
               'Sn-Player-Sign' : _getHashPlayer()
@@ -419,6 +433,9 @@ class _WebViewState extends State<WebView> {
               : null,
           onWebViewCreated: (InAppWebViewController controller) {
             webViewsCollections[index].webExplorerController = controller;
+          },
+          onUpdateVisitedHistory: (controller, url, androidIsReload) {
+            _updateCanGoBack();
           },
           onLoadStart: (controller, url) {
             setState(() {
@@ -433,13 +450,16 @@ class _WebViewState extends State<WebView> {
           },
           shouldOverrideUrlLoading: (controller, navigationAction) async {
             var uri = navigationAction.request.url!;
-            if (![ "http", "https", "file", "chrome",
-              "data", "javascript", "about"].contains(uri.scheme)) {
+            if (["file", "javascript", "data"].contains(uri.scheme)) {
+              return NavigationActionPolicy.CANCEL;
+            }
+            if (!["http", "https", "about"].contains(uri.scheme)) {
               String url = uri.toString();
-              if (await canLaunch(url)) {
+              if (await canLaunchUrl(Uri.parse(url))) {
                 // Launch the App
-                await launch(
-                  url,
+                await launchUrl(
+                  Uri.parse(url),
+                  mode: LaunchMode.externalApplication,
                 );
                 return NavigationActionPolicy.CANCEL;
               }
@@ -476,9 +496,13 @@ class _WebViewState extends State<WebView> {
               if (hasGranted == true) {
                 String _localPath;
                 if (Platform.isIOS) {
-                  _localPath = await getApplicationDocumentsDirectory() as String;
+                  _localPath = (await getApplicationDocumentsDirectory()).path;
                 } else {
-                  _localPath = '/storage/emulated/0/Download';
+                  _localPath = (await getExternalStorageDirectory())?.path ?? '/storage/emulated/0/Download';
+                }
+                final dir = Directory(_localPath);
+                if (!await dir.exists()) {
+                  await dir.create(recursive: true);
                 }
                 await FlutterDownloader.enqueue(
                   url: url.toString(),
@@ -490,28 +514,30 @@ class _WebViewState extends State<WebView> {
               }
             });
           },
-          onLoadError: (controller, url, code, message) {
+          onReceivedError: (controller, request, error) {
             webViewsCollections[index].pullToRefreshController?.endRefreshing();
-            if (code == -999) {
+            if (error.type == WebResourceErrorType.CANCELLED ||
+                error.description.contains("net::ERR_ABORTED") ||
+                error.type == WebResourceErrorType.UNKNOWN) {
               return;
             }
-            if (message.isNotEmpty) {
+            if (error.description.isNotEmpty) {
               setState(() {
                 webViewsCollections[index].isLoading = false;
                 webViewsCollections[index].error = true;
               });
-              debugPrint("Fail load page code - $code");
-              debugPrint("Fail load page message - $message");
+              debugPrint("Fail load page code - ${error.type}");
+              debugPrint("Fail load page message - ${error.description}");
             }
           },
-          onLoadHttpError: (controller, url, code, message) {
+          onReceivedHttpError: (controller, request, errorResponse) {
             webViewsCollections[index].pullToRefreshController?.endRefreshing();
-            if (message.isNotEmpty) {
+            if (errorResponse.reasonPhrase != null && errorResponse.reasonPhrase!.isNotEmpty) {
               setState(() {
                 webViewsCollections[index].isLoading = false;
                 webViewsCollections[index].error = true;
               });
-              debugPrint("Fail HTTP - $message");
+              debugPrint("Fail HTTP - ${errorResponse.reasonPhrase}");
             }
           },
         ),
