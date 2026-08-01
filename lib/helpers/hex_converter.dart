@@ -14,13 +14,13 @@ class HexConverter extends Color {
 }
 
 MaterialColor createMaterialColor(Color color) {
-  List strengths = <double>[.05];
   final swatch = <int, Color>{};
-  final int r = color.red, g = color.green, b = color.blue;
+  final int r = (color.r * 255.0).round().clamp(0, 255);
+  final int g = (color.g * 255.0).round().clamp(0, 255);
+  final int b = (color.b * 255.0).round().clamp(0, 255);
 
-  for (int i = 1; i < 10; i++) {
-    strengths.add(0.1 * i);
-  }
+  final List<double> strengths = [0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
+
   for (var strength in strengths) {
     final double ds = 0.5 - strength;
     swatch[(strength * 1000).round()] = Color.fromRGBO(
@@ -30,5 +30,5 @@ MaterialColor createMaterialColor(Color color) {
       1,
     );
   }
-  return MaterialColor(color.value, swatch);
+  return MaterialColor(color.toARGB32(), swatch);
 }

@@ -345,14 +345,18 @@ class _WebViewState extends State<WebView> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (didPop) return;
         bool status = await canJumpBack();
         if (status) {
           webViewsCollections[tabIndex].webExplorerController?.goBack();
-          return false;
         } else {
-          return _onBackPressed();
+          bool shouldPop = await _onBackPressed();
+          if (shouldPop && context.mounted) {
+            Navigator.of(context).pop();
+          }
         }
       },
       child: Scaffold(
