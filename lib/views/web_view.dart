@@ -265,12 +265,13 @@ class _WebViewState extends State<WebView> {
   }
 
   void injectCss(index) {
-    String styles = "";
+    final buffer = StringBuffer();
     for (var item in Config.cssHideBlock) {
-      styles = styles + item + "{ display: none; }";
+      buffer.write(item);
+      buffer.write("{ display: none; }");
     }
     webViewsCollections[index].webExplorerController?.injectCSSCode(
-        source: styles
+        source: buffer.toString()
     );
   }
 
@@ -345,14 +346,18 @@ class _WebViewState extends State<WebView> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
         bool status = await canJumpBack();
         if (status) {
           webViewsCollections[tabIndex].webExplorerController?.goBack();
-          return false;
         } else {
-          return _onBackPressed();
+          bool shouldPop = await _onBackPressed();
+          if (shouldPop) {
+            Navigator.of(context).pop();
+          }
         }
       },
       child: Scaffold(
@@ -476,10 +481,11 @@ class _WebViewState extends State<WebView> {
               if (hasGranted == true) {
                 String _localPath;
                 if (Platform.isIOS) {
-                  _localPath = await getApplicationDocumentsDirectory() as String;
+                  _localPath = (await getApplicationDocumentsDirectory()).path;
                 } else {
-                  _localPath = '/storage/emulated/0/Download';
+                  _localPath = (await getExternalStorageDirectory())?.path ?? '/storage/emulated/0/Download';
                 }
+                await Directory(_localPath).create(recursive: true);
                 await FlutterDownloader.enqueue(
                   url: url.toString(),
                   savedDir: _localPath,
