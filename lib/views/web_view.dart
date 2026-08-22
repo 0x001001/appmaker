@@ -17,6 +17,7 @@ import 'package:flangapp_app/widgets/loader.dart';
 import 'package:flangapp_app/widgets/modal_fit.dart';
 import 'package:flangapp_app/widgets/offline_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';
@@ -62,6 +63,8 @@ class _WebViewState extends State<WebView> {
   );
   // active link
   String activeLink = "";
+  // can jump back state
+  bool _canGoBack = false;
   // wev view options
   InAppWebViewGroupOptions options = InAppWebViewGroupOptions(
       crossPlatform: InAppWebViewOptions(
@@ -83,9 +86,10 @@ class _WebViewState extends State<WebView> {
 
   /// *** Init view screen *** ///
   @override
-  initState() {
+  void initState() {
     activeLink = Config.appLink;
     initWebViewCollections();
+    _updateCanGoBackFuture();
     initPullToRefresh();
     super.initState();
     Connectivity().onConnectivityChanged.
@@ -169,6 +173,15 @@ class _WebViewState extends State<WebView> {
           error: false
         )
       ];
+    }
+  }
+
+  void _updateCanGoBackFuture() async {
+    bool canGoBack = await canJumpBack();
+    if (_canGoBack != canGoBack) {
+      setState(() {
+        _canGoBack = canGoBack;
+      });
     }
   }
 
@@ -265,12 +278,13 @@ class _WebViewState extends State<WebView> {
   }
 
   void injectCss(index) {
-    String styles = "";
+    StringBuffer stylesBuffer = StringBuffer();
     for (var item in Config.cssHideBlock) {
-      styles = styles + item + "{ display: none; }";
+      stylesBuffer.write(item);
+      stylesBuffer.write("{ display: none; }");
     }
     webViewsCollections[index].webExplorerController?.injectCSSCode(
-        source: styles
+        source: stylesBuffer.toString()
     );
   }
 
@@ -345,14 +359,18 @@ class _WebViewState extends State<WebView> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
         bool status = await canJumpBack();
         if (status) {
           webViewsCollections[tabIndex].webExplorerController?.goBack();
-          return false;
         } else {
-          return _onBackPressed();
+          bool shouldPop = await _onBackPressed();
+          if (shouldPop) {
+             SystemNavigator.pop();
+          }
         }
       },
       child: Scaffold(
@@ -360,7 +378,7 @@ class _WebViewState extends State<WebView> {
         resizeToAvoidBottomInset: false,
         appBar: Config.appTemplate != Template.blank ? Bar(
           title: webViewsCollections[tabIndex].title,
-          canBack: canJumpBack(),
+          canBack: Future.value(_canGoBack),
           onBack: () => webViewsCollections[tabIndex]
               .webExplorerController?.goBack(),
           onDrawer: () => _scaffoldKey.currentState!.openDrawer(),
@@ -394,6 +412,7 @@ class _WebViewState extends State<WebView> {
             setState(() {
               tabIndex = index;
             });
+            _updateCanGoBackFuture();
           },
         ) : null,
       ),
@@ -420,12 +439,19 @@ class _WebViewState extends State<WebView> {
           onWebViewCreated: (InAppWebViewController controller) {
             webViewsCollections[index].webExplorerController = controller;
           },
+          onUpdateVisitedHistory: (controller, url, androidIsReload) {
+            _updateCanGoBackFuture();
+          },
           onLoadStart: (controller, url) {
             setState(() {
               webViewsCollections[index].url = url.toString();
               webViewsCollections[index].isLoading = true;
               activeLink = url.toString();
             });
+            _updateCanGoBackFuture();
+          },
+          onLoadStop: (controller, url) async {
+            _updateCanGoBackFuture();
           },
           androidOnGeolocationPermissionsShowPrompt: (InAppWebViewController controller, String origin) async {
             await Permission.location.request();
@@ -433,8 +459,10 @@ class _WebViewState extends State<WebView> {
           },
           shouldOverrideUrlLoading: (controller, navigationAction) async {
             var uri = navigationAction.request.url!;
-            if (![ "http", "https", "file", "chrome",
-              "data", "javascript", "about"].contains(uri.scheme)) {
+            if (["file", "javascript", "data"].contains(uri.scheme)) {
+              return NavigationActionPolicy.CANCEL;
+            }
+            if (![ "http", "https", "about"].contains(uri.scheme)) {
               String url = uri.toString();
               if (await canLaunch(url)) {
                 // Launch the App
