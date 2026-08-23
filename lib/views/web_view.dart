@@ -19,6 +19,7 @@ import 'package:flangapp_app/widgets/offline_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:flutter/services.dart';
 import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -265,12 +266,13 @@ class _WebViewState extends State<WebView> {
   }
 
   void injectCss(index) {
-    String styles = "";
+    StringBuffer stylesBuffer = StringBuffer();
     for (var item in Config.cssHideBlock) {
-      styles = styles + item + "{ display: none; }";
+      stylesBuffer.write(item);
+      stylesBuffer.write("{ display: none; }");
     }
     webViewsCollections[index].webExplorerController?.injectCSSCode(
-        source: styles
+        source: stylesBuffer.toString()
     );
   }
 
@@ -345,14 +347,18 @@ class _WebViewState extends State<WebView> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (didPop) return;
         bool status = await canJumpBack();
         if (status) {
           webViewsCollections[tabIndex].webExplorerController?.goBack();
-          return false;
         } else {
-          return _onBackPressed();
+          bool shouldExit = await _onBackPressed();
+          if (shouldExit) {
+            SystemNavigator.pop();
+          }
         }
       },
       child: Scaffold(
@@ -433,8 +439,10 @@ class _WebViewState extends State<WebView> {
           },
           shouldOverrideUrlLoading: (controller, navigationAction) async {
             var uri = navigationAction.request.url!;
-            if (![ "http", "https", "file", "chrome",
-              "data", "javascript", "about"].contains(uri.scheme)) {
+            if (["file", "javascript", "data"].contains(uri.scheme)) {
+              return NavigationActionPolicy.CANCEL;
+            }
+            if (!["http", "https", "about"].contains(uri.scheme)) {
               String url = uri.toString();
               if (await canLaunch(url)) {
                 // Launch the App
@@ -476,10 +484,13 @@ class _WebViewState extends State<WebView> {
               if (hasGranted == true) {
                 String _localPath;
                 if (Platform.isIOS) {
-                  _localPath = await getApplicationDocumentsDirectory() as String;
+                  var dir = await getApplicationDocumentsDirectory();
+                  _localPath = dir.path;
                 } else {
-                  _localPath = '/storage/emulated/0/Download';
+                  var dir = await getExternalStorageDirectory();
+                  _localPath = dir!.path;
                 }
+                await Directory(_localPath).create(recursive: true);
                 await FlutterDownloader.enqueue(
                   url: url.toString(),
                   savedDir: _localPath,
