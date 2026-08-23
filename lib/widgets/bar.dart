@@ -40,12 +40,26 @@ class _BarState extends State<Bar> {
   final Color background = HexConverter(Config.color);
   final Color textColor = Config.isDark ? Colors.white : Colors.black;
   final List<NavigationItem> barNavigationItems = Config.barNavigation;
+  late Future<bool> _canBackFuture;
 
+  @override
+  void initState() {
+    super.initState();
+    _canBackFuture = widget.canBack;
+  }
+
+  @override
+  void didUpdateWidget(covariant Bar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.canBack != widget.canBack) {
+      _canBackFuture = widget.canBack;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<bool>(
-      future: widget.canBack,
+      future: _canBackFuture,
       builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
         return Platform.isAndroid ? _androidBar(snapshot) : _iOSBar(snapshot);
       },
@@ -68,7 +82,7 @@ class _BarState extends State<Bar> {
     if (canBack == true) {
       return CupertinoButton(
         padding: const EdgeInsets.only(top: 0, bottom: 0, left: 0, right: 18),
-        minSize: 0,
+        minSize: 0.0,
         child: SvgPicture.asset(
           _iconBackChevron,
           color: Config.isDark ? Colors.white : Colors.black,
@@ -80,7 +94,7 @@ class _BarState extends State<Bar> {
     if (canBack == false && Config.appTemplate == Template.drawer) {
       return CupertinoButton(
         padding: const EdgeInsets.only(top: 0, bottom: 0, left: 0, right: 18),
-        minSize: 0,
+        minSize: 0.0,
         child: SvgPicture.asset(
           _iconMenu,
           color: Config.isDark ? Colors.white : Colors.black,
@@ -106,7 +120,7 @@ class _BarState extends State<Bar> {
             ),
             onPressed: () => widget.onAction(item),
             padding: const EdgeInsets.only(left: 14),
-            minSize: 0,
+            minSize: 0.0,
           )
       ],
     );
