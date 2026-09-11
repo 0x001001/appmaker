@@ -42,10 +42,26 @@ class _BarState extends State<Bar> {
   final List<NavigationItem> barNavigationItems = Config.barNavigation;
 
 
+  Future<bool>? _canBackFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _canBackFuture = widget.canBack;
+  }
+
+  @override
+  void didUpdateWidget(Bar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.canBack != widget.canBack) {
+      _canBackFuture = widget.canBack;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<bool>(
-      future: widget.canBack,
+      future: _canBackFuture,
       builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
         return Platform.isAndroid ? _androidBar(snapshot) : _iOSBar(snapshot);
       },
