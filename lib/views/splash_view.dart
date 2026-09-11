@@ -22,7 +22,7 @@ class SplashView extends StatefulWidget {
 class _SplashViewState extends State<SplashView> {
 
   @override
-  initState() {
+  void initState() {
     super.initState();
     _initApp();
   }
