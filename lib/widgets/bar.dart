@@ -12,7 +12,7 @@ import '../models/navigation_item.dart';
 class Bar extends StatefulWidget implements PreferredSizeWidget {
 
   final String title;
-  final Future<bool> canBack;
+  final bool canBack;
   final VoidCallback onBack;
   final VoidCallback onDrawer;
   final Function onAction;
@@ -44,22 +44,17 @@ class _BarState extends State<Bar> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<bool>(
-      future: widget.canBack,
-      builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
-        return Platform.isAndroid ? _androidBar(snapshot) : _iOSBar(snapshot);
-      },
-    );
+    return Platform.isAndroid ? _androidBar(widget.canBack) : _iOSBar(widget.canBack);
   }
 
-  Widget _iOSBar(AsyncSnapshot<bool> snapshot) {
+  Widget _iOSBar(bool canBack) {
     return CupertinoNavigationBar(
       backgroundColor: background,
       middle: Text(widget.title, style: TextStyle(
         color: textColor,
       ), overflow: TextOverflow.ellipsis, maxLines: 1),
       brightness: Config.isDark ? Brightness.dark : Brightness.light,
-      leading: snapshot.hasData ? _iOSLeading(snapshot.data) : null,
+      leading: _iOSLeading(canBack),
       trailing: _iOSTrailing(),
     );
   }
@@ -112,14 +107,14 @@ class _BarState extends State<Bar> {
     );
   }
 
-  Widget _androidBar(AsyncSnapshot<bool> snapshot) {
+  Widget _androidBar(bool canBack) {
     return AppBar(
       automaticallyImplyLeading: false,
       backgroundColor: background,
       title: Text(widget.title, style: TextStyle(
         color: textColor,
       )),
-      leading: snapshot.hasData ? _androidLeading(snapshot.data) : null,
+      leading: _androidLeading(canBack),
       actions: [
         for(final item in barNavigationItems)
           IconButton(
