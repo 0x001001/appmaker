@@ -17,6 +17,7 @@ import 'package:flangapp_app/widgets/loader.dart';
 import 'package:flangapp_app/widgets/modal_fit.dart';
 import 'package:flangapp_app/widgets/offline_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';
@@ -62,6 +63,10 @@ class _WebViewState extends State<WebView> {
   );
   // active link
   String activeLink = "";
+  // cached css string
+  String _cachedCss = "";
+  // cache canGoBack
+  bool _canGoBackStatus = false;
   // wev view options
   InAppWebViewGroupOptions options = InAppWebViewGroupOptions(
       crossPlatform: InAppWebViewOptions(
@@ -83,8 +88,9 @@ class _WebViewState extends State<WebView> {
 
   /// *** Init view screen *** ///
   @override
-  initState() {
+  void initState() {
     activeLink = Config.appLink;
+    _initCssCache();
     initWebViewCollections();
     initPullToRefresh();
     super.initState();
@@ -169,6 +175,25 @@ class _WebViewState extends State<WebView> {
           error: false
         )
       ];
+    }
+  }
+
+  Future<void> updateCanGoBack() async {
+    try {
+      if (webViewsCollections[tabIndex].webExplorerController != null) {
+        bool status = await webViewsCollections[tabIndex].webExplorerController!.canGoBack();
+        if (_canGoBackStatus != status) {
+          setState(() {
+            _canGoBackStatus = status;
+          });
+        }
+      }
+    } catch (e) {
+      if (_canGoBackStatus != false) {
+        setState(() {
+          _canGoBackStatus = false;
+        });
+      }
     }
   }
 
@@ -264,14 +289,21 @@ class _WebViewState extends State<WebView> {
     }
   }
 
-  void injectCss(index) {
-    String styles = "";
+  void _initCssCache() {
+    StringBuffer buffer = StringBuffer();
     for (var item in Config.cssHideBlock) {
-      styles = styles + item + "{ display: none; }";
+      buffer.write(item);
+      buffer.write("{ display: none; }");
     }
-    webViewsCollections[index].webExplorerController?.injectCSSCode(
-        source: styles
-    );
+    _cachedCss = buffer.toString();
+  }
+
+  void injectCss(index) {
+    if (_cachedCss.isNotEmpty) {
+      webViewsCollections[index].webExplorerController?.injectCSSCode(
+          source: _cachedCss
+      );
+    }
   }
 
   void changeConnectionStatus(ConnectivityResult result) async {
@@ -295,7 +327,7 @@ class _WebViewState extends State<WebView> {
   }
 
   Future<bool> _onBackPressed() async {
-    return await showDialog(
+    bool? result = await showDialog(
       context: context, builder: (context) => AlertDialog(
       title: Text(Config.titleExit),
       content: Text(Config.messageExit),
@@ -312,6 +344,10 @@ class _WebViewState extends State<WebView> {
         ),
       ],
     ));
+    if (result == true) {
+      SystemNavigator.pop();
+    }
+    return result ?? false;
   }
 
   Future<bool> checkStoragePermission() async {
@@ -345,14 +381,15 @@ class _WebViewState extends State<WebView> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, dynamic result) async {
+        if (didPop) return;
         bool status = await canJumpBack();
         if (status) {
           webViewsCollections[tabIndex].webExplorerController?.goBack();
-          return false;
         } else {
-          return _onBackPressed();
+          _onBackPressed();
         }
       },
       child: Scaffold(
@@ -360,7 +397,7 @@ class _WebViewState extends State<WebView> {
         resizeToAvoidBottomInset: false,
         appBar: Config.appTemplate != Template.blank ? Bar(
           title: webViewsCollections[tabIndex].title,
-          canBack: canJumpBack(),
+          canBack: _canGoBackStatus,
           onBack: () => webViewsCollections[tabIndex]
               .webExplorerController?.goBack(),
           onDrawer: () => _scaffoldKey.currentState!.openDrawer(),
@@ -394,6 +431,7 @@ class _WebViewState extends State<WebView> {
             setState(() {
               tabIndex = index;
             });
+              updateCanGoBack();
           },
         ) : null,
       ),
@@ -420,12 +458,16 @@ class _WebViewState extends State<WebView> {
           onWebViewCreated: (InAppWebViewController controller) {
             webViewsCollections[index].webExplorerController = controller;
           },
+          onLoadStop: (controller, url) {
+            updateCanGoBack();
+          },
           onLoadStart: (controller, url) {
             setState(() {
               webViewsCollections[index].url = url.toString();
               webViewsCollections[index].isLoading = true;
               activeLink = url.toString();
             });
+            updateCanGoBack();
           },
           androidOnGeolocationPermissionsShowPrompt: (InAppWebViewController controller, String origin) async {
             await Permission.location.request();
@@ -433,8 +475,10 @@ class _WebViewState extends State<WebView> {
           },
           shouldOverrideUrlLoading: (controller, navigationAction) async {
             var uri = navigationAction.request.url!;
-            if (![ "http", "https", "file", "chrome",
-              "data", "javascript", "about"].contains(uri.scheme)) {
+            if (["file", "javascript", "data"].contains(uri.scheme)) {
+              return NavigationActionPolicy.CANCEL;
+            }
+            if (!["http", "https", "about"].contains(uri.scheme)) {
               String url = uri.toString();
               if (await canLaunch(url)) {
                 // Launch the App
@@ -443,11 +487,13 @@ class _WebViewState extends State<WebView> {
                 );
                 return NavigationActionPolicy.CANCEL;
               }
+              return NavigationActionPolicy.CANCEL;
             }
             return NavigationActionPolicy.ALLOW;
           },
           onProgressChanged: (controller, progress) {
             injectCss(index);
+            updateCanGoBack();
             if (progress == 100) {
               webViewsCollections[index].pullToRefreshController?.endRefreshing();
               setState(() {
@@ -476,9 +522,14 @@ class _WebViewState extends State<WebView> {
               if (hasGranted == true) {
                 String _localPath;
                 if (Platform.isIOS) {
-                  _localPath = await getApplicationDocumentsDirectory() as String;
+                  final dir = await getApplicationDocumentsDirectory();
+                  _localPath = dir.path;
                 } else {
                   _localPath = '/storage/emulated/0/Download';
+                }
+                final savedDir = Directory(_localPath);
+                if (!await savedDir.exists()) {
+                  await savedDir.create(recursive: true);
                 }
                 await FlutterDownloader.enqueue(
                   url: url.toString(),
@@ -492,7 +543,8 @@ class _WebViewState extends State<WebView> {
           },
           onLoadError: (controller, url, code, message) {
             webViewsCollections[index].pullToRefreshController?.endRefreshing();
-            if (code == -999) {
+            if (code == -999 || message.contains("net::ERR_ABORTED") || message.contains("net::ERR_UNKNOWN_URL_SCHEME") || code == -10) {
+              // Ignore aborted requests and unknown url schemes (which we handle via launchUrl)
               return;
             }
             if (message.isNotEmpty) {
