@@ -17,6 +17,7 @@ import 'package:flangapp_app/widgets/loader.dart';
 import 'package:flangapp_app/widgets/modal_fit.dart';
 import 'package:flangapp_app/widgets/offline_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';
@@ -62,6 +63,8 @@ class _WebViewState extends State<WebView> {
   );
   // active link
   String activeLink = "";
+  // Injected CSS
+  String injectedCss = "";
   // wev view options
   InAppWebViewGroupOptions options = InAppWebViewGroupOptions(
       crossPlatform: InAppWebViewOptions(
@@ -81,12 +84,21 @@ class _WebViewState extends State<WebView> {
       ),
   );
 
+  void initCssString() {
+    final StringBuffer buffer = StringBuffer();
+    for (var item in Config.cssHideBlock) {
+      buffer.write("$item { display: none; }");
+    }
+    injectedCss = buffer.toString();
+  }
+
   /// *** Init view screen *** ///
   @override
-  initState() {
+  void initState() {
     activeLink = Config.appLink;
     initWebViewCollections();
     initPullToRefresh();
+    initCssString();
     super.initState();
     Connectivity().onConnectivityChanged.
       listen((ConnectivityResult result) {
@@ -265,13 +277,11 @@ class _WebViewState extends State<WebView> {
   }
 
   void injectCss(index) {
-    String styles = "";
-    for (var item in Config.cssHideBlock) {
-      styles = styles + item + "{ display: none; }";
+    if (injectedCss.isNotEmpty) {
+      webViewsCollections[index].webExplorerController?.injectCSSCode(
+          source: injectedCss
+      );
     }
-    webViewsCollections[index].webExplorerController?.injectCSSCode(
-        source: styles
-    );
   }
 
   void changeConnectionStatus(ConnectivityResult result) async {
@@ -345,14 +355,20 @@ class _WebViewState extends State<WebView> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) {
+          return;
+        }
         bool status = await canJumpBack();
         if (status) {
           webViewsCollections[tabIndex].webExplorerController?.goBack();
-          return false;
         } else {
-          return _onBackPressed();
+          bool exit = await _onBackPressed();
+          if (exit) {
+            SystemNavigator.pop();
+          }
         }
       },
       child: Scaffold(
@@ -433,16 +449,18 @@ class _WebViewState extends State<WebView> {
           },
           shouldOverrideUrlLoading: (controller, navigationAction) async {
             var uri = navigationAction.request.url!;
-            if (![ "http", "https", "file", "chrome",
-              "data", "javascript", "about"].contains(uri.scheme)) {
+            if (uri.scheme == 'file' || uri.scheme == 'javascript' || uri.scheme == 'data') {
+              return NavigationActionPolicy.CANCEL;
+            }
+            if (!["http", "https", "about"].contains(uri.scheme)) {
               String url = uri.toString();
               if (await canLaunch(url)) {
                 // Launch the App
                 await launch(
                   url,
                 );
-                return NavigationActionPolicy.CANCEL;
               }
+              return NavigationActionPolicy.CANCEL;
             }
             return NavigationActionPolicy.ALLOW;
           },
@@ -476,9 +494,15 @@ class _WebViewState extends State<WebView> {
               if (hasGranted == true) {
                 String _localPath;
                 if (Platform.isIOS) {
-                  _localPath = await getApplicationDocumentsDirectory() as String;
+                  var dir = await getApplicationDocumentsDirectory();
+                  _localPath = dir.path;
                 } else {
-                  _localPath = '/storage/emulated/0/Download';
+                  var dir = await getExternalStorageDirectory();
+                  _localPath = dir?.path ?? '/storage/emulated/0/Download';
+                }
+                var directory = Directory(_localPath);
+                if (!await directory.exists()) {
+                  await directory.create(recursive: true);
                 }
                 await FlutterDownloader.enqueue(
                   url: url.toString(),

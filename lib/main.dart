@@ -15,12 +15,15 @@ void main() async {
 
 class WebApp extends StatelessWidget {
   const WebApp({Key? key}) : super(key: key);
+
+  static final MaterialColor primarySwatch = createMaterialColor(HexConverter(Config.color));
+
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       theme: ThemeData(
-        primarySwatch: createMaterialColor(HexConverter(Config.color)),
+        primarySwatch: primarySwatch,
         brightness: Brightness.light,
       ),
       themeMode: ThemeMode.light,
