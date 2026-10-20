@@ -1,12 +1,12 @@
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 class WebViewCollection {
-  late InAppWebViewController? webExplorerController;
-  late PullToRefreshController? pullToRefreshController;
-  late String url;
-  late bool isLoading;
-  late String title;
-  late bool error;
+  InAppWebViewController? webExplorerController;
+  PullToRefreshController? pullToRefreshController;
+  String url;
+  bool isLoading;
+  String title;
+  bool error;
 
   WebViewCollection({
     this.webExplorerController,

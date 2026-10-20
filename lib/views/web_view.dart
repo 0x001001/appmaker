@@ -17,6 +17,7 @@ import 'package:flangapp_app/widgets/loader.dart';
 import 'package:flangapp_app/widgets/modal_fit.dart';
 import 'package:flangapp_app/widgets/offline_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';
@@ -345,14 +346,18 @@ class _WebViewState extends State<WebView> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
         bool status = await canJumpBack();
         if (status) {
           webViewsCollections[tabIndex].webExplorerController?.goBack();
-          return false;
         } else {
-          return _onBackPressed();
+          bool exit = await _onBackPressed();
+          if (exit) {
+            SystemNavigator.pop();
+          }
         }
       },
       child: Scaffold(
