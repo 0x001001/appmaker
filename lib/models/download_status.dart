@@ -1,7 +1,7 @@
 class DownloadItem {
-  late bool status;
-  late String filename;
-  late int progress;
+  bool status;
+  String filename;
+  int progress;
 
   DownloadItem({
     this.status = false,
