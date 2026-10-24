@@ -17,6 +17,7 @@ import 'package:flangapp_app/widgets/loader.dart';
 import 'package:flangapp_app/widgets/modal_fit.dart';
 import 'package:flangapp_app/widgets/offline_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';
@@ -83,7 +84,7 @@ class _WebViewState extends State<WebView> {
 
   /// *** Init view screen *** ///
   @override
-  initState() {
+  void initState() {
     activeLink = Config.appLink;
     initWebViewCollections();
     initPullToRefresh();
@@ -265,12 +266,13 @@ class _WebViewState extends State<WebView> {
   }
 
   void injectCss(index) {
-    String styles = "";
+    StringBuffer stylesBuffer = StringBuffer();
     for (var item in Config.cssHideBlock) {
-      styles = styles + item + "{ display: none; }";
+      stylesBuffer.write(item);
+      stylesBuffer.write("{ display: none; }");
     }
     webViewsCollections[index].webExplorerController?.injectCSSCode(
-        source: styles
+        source: stylesBuffer.toString()
     );
   }
 
@@ -345,14 +347,20 @@ class _WebViewState extends State<WebView> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, Object? result) async {
+        if (didPop) {
+          return;
+        }
         bool status = await canJumpBack();
         if (status) {
           webViewsCollections[tabIndex].webExplorerController?.goBack();
-          return false;
         } else {
-          return _onBackPressed();
+          bool shouldPop = await _onBackPressed();
+          if (shouldPop) {
+             SystemNavigator.pop();
+          }
         }
       },
       child: Scaffold(
@@ -476,10 +484,18 @@ class _WebViewState extends State<WebView> {
               if (hasGranted == true) {
                 String _localPath;
                 if (Platform.isIOS) {
-                  _localPath = await getApplicationDocumentsDirectory() as String;
+                  final dir = await getApplicationDocumentsDirectory();
+                  _localPath = dir.path;
                 } else {
-                  _localPath = '/storage/emulated/0/Download';
+                  final dir = await getExternalStorageDirectory();
+                  _localPath = dir!.path;
                 }
+
+                final savedDir = Directory(_localPath);
+                if (!await savedDir.exists()) {
+                  await savedDir.create(recursive: true);
+                }
+
                 await FlutterDownloader.enqueue(
                   url: url.toString(),
                   savedDir: _localPath,
