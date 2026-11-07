@@ -40,7 +40,7 @@ class _LoaderState extends State<Loader> {
       child: LinearProgressIndicator(
         minHeight: 2,
         valueColor: AlwaysStoppedAnimation<Color>(color),
-        backgroundColor: Colors.grey.withOpacity(0.9),
+        backgroundColor: Colors.grey.withValues(alpha: 0.9),
       ),
       top: 0,
       width: widget.width,

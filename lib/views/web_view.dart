@@ -18,6 +18,7 @@ import 'package:flangapp_app/widgets/modal_fit.dart';
 import 'package:flangapp_app/widgets/offline_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';
 import 'package:path_provider/path_provider.dart';
@@ -264,13 +265,19 @@ class _WebViewState extends State<WebView> {
     }
   }
 
+  String? _cachedCssStyles;
+
   void injectCss(index) {
-    String styles = "";
-    for (var item in Config.cssHideBlock) {
-      styles = styles + item + "{ display: none; }";
+    if (_cachedCssStyles == null) {
+      StringBuffer buffer = StringBuffer();
+      for (var item in Config.cssHideBlock) {
+        buffer.write(item);
+        buffer.write("{ display: none; }");
+      }
+      _cachedCssStyles = buffer.toString();
     }
     webViewsCollections[index].webExplorerController?.injectCSSCode(
-        source: styles
+        source: _cachedCssStyles!
     );
   }
 
@@ -345,14 +352,20 @@ class _WebViewState extends State<WebView> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) {
+          return;
+        }
         bool status = await canJumpBack();
         if (status) {
           webViewsCollections[tabIndex].webExplorerController?.goBack();
-          return false;
         } else {
-          return _onBackPressed();
+          bool exit = await _onBackPressed();
+          if (exit) {
+            SystemNavigator.pop();
+          }
         }
       },
       child: Scaffold(
