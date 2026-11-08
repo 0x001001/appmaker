@@ -34,7 +34,7 @@ class _DownloaderState extends State<Downloader> {
                 BoxShadow(
                   offset: const Offset(0, 1),
                   blurRadius: 5,
-                  color: Colors.black.withOpacity(0.3),
+                  color: Colors.black.withValues(alpha: 0.3),
                 ),
               ],
             ),
@@ -50,7 +50,7 @@ class _DownloaderState extends State<Downloader> {
                   value: widget.progress / 100,
                   semanticsLabel: 'Linear progress indicator',
                   color: color,
-                  backgroundColor: color.withOpacity(0.5),
+                  backgroundColor: color.withValues(alpha: 0.5),
                 ),
               ],
             ),
